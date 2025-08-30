@@ -5,20 +5,35 @@
 - Supports both keyboard input and on-screen virtual keyboard for letter entry
 - Supports Dark Mode to enhance user experience 
 - Implemented client-server architecture with Flask backend and React frontend
-
-- Next planned update: Support Host cheating wordle Mode
+- Comprehensive logging system for game analytics and debugging
+- New Host cheating wordle(Absurdle) game mode
 
 ### Development Notes
 - The current word list contains a small set of test words. A comprehensive word list will be added in a future update.
+- A multiplayer mode option is implemented in the menu for future development
+
+### Planned Development
+- Multiplayer functionality for wordle game
+- User authentication and account management system
+- Personal statistics and game history tracking dashboard
 
 ### Game Rules
 
-1. Guess the 5-letter word in the given number of attempts 
+#### Wordle Mode (Classic)
+1. Guess the 5-letter word in limited attempts 
 2. Each guess must be a valid 5-letter word from the word list
 3. After each guess, the color of the tiles will change:
    - Green: Letter is correct and in the right position
    - Yellow: Letter is in the word but in the wrong position
    - Gray: Letter is not in the word at all
+
+#### Absurdle Mode (Adversarial)
+1. Guess the 5-letter word
+2. Each guess must be a valid 5-letter word from the word list
+3. The game dynamically chooses feedback to keep as many word possibilities open
+4. The game board grows with each guess (starts with 1 row, adds more as needed)
+5. Win condition: Force the game to narrow down to exactly one possible word
+
 
 ### Project Structure
 
@@ -31,12 +46,14 @@ wordle_task/
 │   │
 │   ├── src/
 │   │   ├── components/     # Reusable React components
+│   │   │   ├── AbsurdleBoard.js # Dynamic growing game board for Absurdle mode
 │   │   │   ├── Alert.js    # Notification system component
 │   │   │   ├── DropdownMenu.js # Navigation dropdown menu
 │   │   │   ├── GameBoard.js # Dynamic game board with tile grid
 │   │   │   ├── GameTile.js  # Individual letter tile component
 │   │   │   ├── InteractiveHoverButton.js # Enhanced button component
-│   │   │   ├── Keyboard.js  # Virtual on-screen keyboard
+│   │   │   ├── Keyboard.js  # Virtual on-screen keyboard 
+│   │   │   ├── MenuPage.js  # Game mode selection interface
 │   │   │   └── SettingsModal.js # Game settings configuration modal
 │   │   │  
 │   │   ├── apiService.js    # HTTP client for server communication
@@ -168,12 +185,12 @@ http://127.0.0.1:5000/api
 ### Endpoints
 
 #### POST /new_game
-Creates a new game session with a randomly selected word.
+Creates a new game session with mode-specific initialization.
 
 **Request Body:**
 ```json
 {
-  // No body parameters - max_rounds is controlled by server
+  "game_mode": "wordle"  // "wordle" or "absurdle" (defaults to "wordle")
 }
 ```
 
@@ -185,13 +202,14 @@ Creates a new game session with a randomly selected word.
   "state": {
     "game_id": "uuid-string",
     "current_round": 0,
-    "max_rounds": 6,
+    "max_rounds": 6,        // 6 for Wordle, 1 for Absurdle (grows dynamically)
     "game_over": false,
     "won": false,
     "guesses": [],
     "guess_results": [],
     "letter_status": {},
-    "answer": null
+    "answer": null,         // Only revealed when game ends
+    "game_mode": "wordle"   // "wordle" or "absurdle"
   }
 }
 ```
@@ -206,7 +224,7 @@ Retrieves the current state of a game session.
   "state": {
     "game_id": "uuid-string",
     "current_round": 2,
-    "max_rounds": 6,
+    "max_rounds": 6,        // For Wordle: fixed 6, For Absurdle: grows with guesses
     "game_over": false,
     "won": false,
     "guesses": ["ABOUT", "BRAIN"],
@@ -214,8 +232,12 @@ Retrieves the current state of a game session.
       [["A", "MISS"], ["B", "HIT"], ["O", "PRESENT"], ["U", "MISS"], ["T", "MISS"]],
       [["B", "HIT"], ["R", "MISS"], ["A", "PRESENT"], ["I", "MISS"], ["N", "MISS"]]
     ],
-    "letter_status": {},
-    "answer": null
+    "letter_status": {      // Tracks keyboard coloring
+      "A": "PRESENT", "B": "HIT", "O": "PRESENT", 
+      // ... other letters
+    },
+    "answer": null,         // Only included when game_over: true
+    "game_mode": "wordle"   // Current game mode
   }
 }
 ```
@@ -236,15 +258,28 @@ Submits a guess for validation and evaluation.
   "success": true,
   "state": {
     // Updated game state with new guess processed
+    // For Absurdle: max_rounds will increment by 1
+    // For Wordle: max_rounds stays at 6
+    // guess_results will include new feedback pattern
   }
 }
 ```
 
-**Error Response:**
+**Error Responses:**
 ```json
 {
   "success": false,
   "error": "Word not in word list"
+}
+
+{
+  "success": false,
+  "error": "Game is already over"
+}
+
+{
+  "success": false,
+  "error": "Guess must be exactly 5 letters"
 }
 ```
 

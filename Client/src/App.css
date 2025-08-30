@@ -292,6 +292,17 @@ body {
   border-color: #1a1a1a;
 }
 
+.game-over-modal__button--menu {
+  background-color: #ffc107;
+  color: #000000;
+  border-color: #ffc107;
+}
+
+.game-over-modal__button--menu:hover {
+  background-color: #e0a800;
+  border-color: #e0a800;
+}
+
 .game-over-modal__button--close {
   background-color: #ffffff;
   color: #000000;
@@ -330,6 +341,17 @@ body {
 .app--dark .game-over-modal__button--play-again:hover {
   background-color: #f0f0f0;
   border-color: #f0f0f0;
+}
+
+.app--dark .game-over-modal__button--menu {
+  background-color: #ffc107;
+  color: #000000;
+  border-color: #ffc107;
+}
+
+.app--dark .game-over-modal__button--menu:hover {
+  background-color: #e0a800;
+  border-color: #e0a800;
 }
 
 .app--dark .game-over-modal__button--close {

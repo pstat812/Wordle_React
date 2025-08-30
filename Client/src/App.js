@@ -1,12 +1,15 @@
 /**
- * Wordle Game Application - Main Component
+ * Multi-Mode Word Game Application - Main Component
  *
- * This is the main React component that orchestrates the entire Wordle game.
- * It handles game state, user interactions, and UI updates following React best practices.
+ * This is the main React component that orchestrates the entire application.
+ * It handles routing between menu and different game modes (Wordle, Absurdle),
+ * game state, user interactions, and UI updates following React best practices.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import MenuPage from './components/MenuPage';
 import GameBoard from './components/GameBoard';
+import AbsurdleBoard from './components/AbsurdleBoard';
 import Keyboard from './components/Keyboard';
 import SettingsModal from './components/SettingsModal';
 import DropdownMenu from './components/DropdownMenu';
@@ -15,7 +18,17 @@ import { useWordleGame } from './useWordleGame';
 import './App.css';
 
 function App() {
-  const game = useWordleGame();
+  // Game mode state
+  const [currentPage, setCurrentPage] = useState('menu'); // 'menu', 'wordle', 'absurdle'
+  
+  // Game hooks
+  const wordleGame = useWordleGame('wordle');
+  const absurdleGame = useWordleGame('absurdle');
+  
+  // Get current game based on mode
+  const game = currentPage === 'absurdle' ? absurdleGame : wordleGame;
+  
+  // UI state
   const [showGameOver, setShowGameOver] = useState(false);
   const [gameOverShown, setGameOverShown] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -140,9 +153,33 @@ function App() {
     }
   }, [game.error, showAlert, isInvalidWordError]);
 
+  // Game mode selection handler
+  const handleGameModeSelect = useCallback((mode) => {
+    setCurrentPage(mode);
+    setShowGameOver(false);
+    setGameOverShown(false);
+    hideAlert(); // Clear any existing alerts
+    
+    // Start new game for selected mode
+    if (mode === 'wordle') {
+      wordleGame.newGame();
+    } else if (mode === 'absurdle') {
+      absurdleGame.newGame();
+    }
+  }, [wordleGame, absurdleGame, hideAlert]);
+
+  // Back to menu handler
+  const handleBackToMenu = useCallback(() => {
+    setCurrentPage('menu');
+    setShowGameOver(false);
+    setGameOverShown(false);
+    hideAlert(); // Clear any existing alerts
+  }, [hideAlert]);
+
   const handleNewGame = () => {
     setShowGameOver(false);
     setGameOverShown(false);
+    hideAlert(); // Clear any existing alerts
     game.newGame();
   };
 
@@ -153,6 +190,26 @@ function App() {
     }
   };
 
+  // Render menu page
+  if (currentPage === 'menu') {
+    return (
+      <div className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}>
+        <MenuPage onGameModeSelect={handleGameModeSelect} />
+        
+        {/* Settings Modal */}
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={setIsDarkMode}
+        />
+        
+        {/* Note: No alerts shown on menu page */}
+      </div>
+    );
+  }
+
+  // Render game page
   return (
     <div className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}>
       {/* Alert System */}
@@ -170,6 +227,12 @@ function App() {
           <div className="app__controls">
             <DropdownMenu
               options={[
+                {
+                  id: 'back-to-menu',
+                  label: 'Back to Menu',
+                  icon: '🏠',
+                  onClick: handleBackToMenu
+                },
                 {
                   id: 'new-game',
                   label: 'New Game',
@@ -189,13 +252,23 @@ function App() {
         </header>
 
         <main className="app__main">
-          <GameBoard
-            guesses={game.guesses}
-            guessResults={game.guessResults}
-            currentInput={game.currentInput}
-            maxRounds={game.maxRounds}
-            gameOver={game.gameOver}
-          />
+          {currentPage === 'absurdle' ? (
+            <AbsurdleBoard
+              guesses={game.guesses}
+              guessResults={game.guessResults}
+              currentInput={game.currentInput}
+              maxRounds={game.maxRounds}
+              gameOver={game.gameOver}
+            />
+          ) : (
+            <GameBoard
+              guesses={game.guesses}
+              guessResults={game.guessResults}
+              currentInput={game.currentInput}
+              maxRounds={game.maxRounds}
+              gameOver={game.gameOver}
+            />
+          )}
 
           <Keyboard
             letterStatus={game.letterStatus}
@@ -228,32 +301,53 @@ function App() {
                 {game.won ? "🎉 You Won!" : "😔 Game Over"}
               </h2>
               <div className="game-over-modal__message">
-                {game.won ? (
-                  <p>
-                    Congratulations!<br />
-                    You guessed <strong>'{game.answer}'</strong> in {game.currentRound} attempts!
-                  </p>
+                {currentPage === 'absurdle' ? (
+                  game.won ? (
+                    <p>
+                      Congratulations!<br />
+                      You've successfully found the final word: <strong>'{game.answer}'</strong><br />
+                      It took {game.currentRound} guesses!
+                    </p>
+                  ) : (
+                    <p>
+                      The adversarial algorithm kept you guessing for {game.currentRound} rounds!<br />
+                      The word was narrowed down but you didn't find it in time.
+                    </p>
+                  )
                 ) : (
-                  <p>
-                    The word was: <strong>{game.answer}</strong><br />
-                    Better luck next time!
-                  </p>
+                  game.won ? (
+                    <p>
+                      Congratulations!<br />
+                      You guessed <strong>'{game.answer}'</strong> in {game.currentRound} attempts!
+                    </p>
+                  ) : (
+                    <p>
+                      The word was: <strong>{game.answer}</strong><br />
+                      Better luck next time!
+                    </p>
+                  )
                 )}
               </div>
-                              <div className="game-over-modal__buttons">
-                  <button 
-                    className="game-over-modal__button game-over-modal__button--play-again"
-                    onClick={() => handleGameOverResponse(true)}
-                  >
-                    Play Again
-                  </button>
-                  <button 
-                    className="game-over-modal__button game-over-modal__button--close"
-                    onClick={() => handleGameOverResponse(false)}
-                  >
-                    Close
-                  </button>
-                </div>
+              <div className="game-over-modal__buttons">
+                <button 
+                  className="game-over-modal__button game-over-modal__button--play-again"
+                  onClick={() => handleGameOverResponse(true)}
+                >
+                  Play Again
+                </button>
+                <button 
+                  className="game-over-modal__button game-over-modal__button--menu"
+                  onClick={handleBackToMenu}
+                >
+                  Back to Menu
+                </button>
+                <button 
+                  className="game-over-modal__button game-over-modal__button--close"
+                  onClick={() => handleGameOverResponse(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

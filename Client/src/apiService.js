@@ -61,12 +61,13 @@ async function apiRequest(endpoint, options = {}) {
 
 /**
  * Creates a new game session
+ * @param {string} gameMode - Game mode: 'wordle' or 'absurdle'
  * @returns {Promise<object>} Game creation response with game_id and initial state
  */
-export async function createNewGame() {
+export async function createNewGame(gameMode = 'wordle') {
   return await apiRequest('/new_game', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ game_mode: gameMode }),
   });
 }
 

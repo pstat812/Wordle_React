@@ -18,9 +18,10 @@ export const LETTER_STATUS = {
 
 /**
  * Custom hook for managing Wordle game state with server communication
+ * @param {string} gameMode - Game mode: 'wordle' or 'absurdle'
  * @returns {object} Game state and control functions
  */
-export function useWordleGame() {
+export function useWordleGame(gameMode = 'wordle') {
   const [gameId, setGameId] = useState(null);
   const [currentInput, setCurrentInput] = useState("");
   const [initialized, setInitialized] = useState(false);
@@ -56,7 +57,7 @@ export function useWordleGame() {
       setCurrentInput("");
       setGameId(null);
       
-      const response = await createNewGame();
+      const response = await createNewGame(gameMode);
       setGameId(response.game_id);
       setGameState(response.state);
     } catch (err) {
@@ -65,7 +66,7 @@ export function useWordleGame() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [gameMode]);
 
   // Initialize game on first load only
   useEffect(() => {
@@ -119,7 +120,7 @@ export function useWordleGame() {
     try {
       setLoading(true);
       setError(null);
-      const response = await createNewGame();
+      const response = await createNewGame(gameMode);
       setGameId(response.game_id);
       setGameState(response.state);
       setCurrentInput("");

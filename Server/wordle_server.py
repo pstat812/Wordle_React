@@ -38,6 +38,7 @@ class GameState:
     guess_results: List[List[Tuple[str, str]]]  # Letter status as string for JSON serialization
     letter_status: Dict[str, str]
     answer: Optional[str] = None  # Only included when game is over
+    game_mode: str = "wordle"  # "wordle" or "absurdle"
 
 
 class WordleServer:
@@ -55,7 +56,7 @@ class WordleServer:
         self.games: Dict[str, Dict] = {}  # Store active games by game_id
         self.word_list = WORD_LIST.copy()
     
-    def create_new_game(self) -> str:
+    def create_new_game(self, game_mode: str = "wordle") -> str:
         """
         Creates a new game session with a randomly selected word.
         
@@ -70,14 +71,16 @@ class WordleServer:
         
         # Initialize game state
         game_data = {
-            "target_word": target_word,
+            "target_word": target_word if game_mode == "wordle" else None,
             "current_round": 0,
-            "max_rounds": max_rounds,
+            "max_rounds": max_rounds if game_mode == "wordle" else 1,  # Start with 1 for Absurdle
             "game_over": False,
             "won": False,
             "guesses": [],
             "guess_results": [],
-            "letter_status": {letter: LetterStatus.UNUSED.value for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
+            "letter_status": {letter: LetterStatus.UNUSED.value for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+            "game_mode": game_mode,
+            "candidate_words": self.word_list.copy() if game_mode == "absurdle" else []
         }
         
         self.games[game_id] = game_data
@@ -99,7 +102,12 @@ class WordleServer:
         game = self.games[game_id]
         
         # Create state object without exposing the answer unless game is over
-        answer = game["target_word"] if game["game_over"] else None
+        answer = None
+        if game["game_over"]:
+            if game["game_mode"] == "wordle":
+                answer = game["target_word"]
+            elif game["game_mode"] == "absurdle" and len(game["candidate_words"]) == 1:
+                answer = game["candidate_words"][0]
         
         return GameState(
             game_id=game_id,
@@ -110,7 +118,8 @@ class WordleServer:
             guesses=game["guesses"].copy(),
             guess_results=game["guess_results"].copy(),
             letter_status=game["letter_status"].copy(),
-            answer=answer
+            answer=answer,
+            game_mode=game["game_mode"]
         )
     
     def is_valid_guess(self, game_id: str, guess: str) -> Tuple[bool, str]:
@@ -165,10 +174,13 @@ class WordleServer:
         
         game = self.games[game_id]
         normalized_guess = guess.strip().upper()
-        target_word = game["target_word"]
         
-        # Evaluate guess using the same algorithm as the original game
-        evaluations = self._evaluate_guess_against_target(normalized_guess, target_word)
+        # Handle different game modes
+        if game["game_mode"] == "wordle":
+            target_word = game["target_word"]
+            evaluations = self._evaluate_guess_against_target(normalized_guess, target_word)
+        else:  # absurdle
+            evaluations = self._process_absurdle_guess(game, normalized_guess)
         
         # Update game state
         game["current_round"] += 1
@@ -178,14 +190,25 @@ class WordleServer:
         # Update letter status
         self._update_letter_status(game["letter_status"], evaluations)
         
-        # Check win condition
-        if normalized_guess == target_word:
-            game["won"] = True
-            game["game_over"] = True
-        
-        # Check loss condition
-        elif game["current_round"] >= game["max_rounds"]:
-            game["game_over"] = True
+        # Check win condition based on game mode
+        if game["game_mode"] == "wordle":
+            target_word = game["target_word"]
+            if normalized_guess == target_word:
+                game["won"] = True
+                game["game_over"] = True
+            elif game["current_round"] >= game["max_rounds"]:
+                game["game_over"] = True
+        else:  # absurdle
+            # For Absurdle, always extend max_rounds to accommodate the next guess
+            game["max_rounds"] = game["current_round"] + 1
+            
+            # Check if only one candidate remains and it matches the guess
+            if len(game["candidate_words"]) == 1 and normalized_guess == game["candidate_words"][0]:
+                game["won"] = True
+                game["game_over"] = True
+            elif len(game["candidate_words"]) == 0:
+                # Shouldn't happen in well-implemented Absurdle
+                game["game_over"] = True
         
         return self.get_game_state(game_id)
     
@@ -241,6 +264,98 @@ class WordleServer:
             elif new_status == LetterStatus.MISS and current_status == LetterStatus.UNUSED:
                 letter_status[letter] = LetterStatus.MISS.value
     
+    def _process_absurdle_guess(self, game: Dict, guess: str) -> List[Tuple[str, LetterStatus]]:
+        """
+        Process a guess in Absurdle mode by finding the worst possible feedback.
+        """
+        candidate_words = game["candidate_words"]
+        
+        # Generate all possible patterns for this guess
+        all_patterns = self._generate_all_patterns(guess)
+        
+        # Group candidate words by pattern
+        pattern_groups = {}
+        
+        for pattern in all_patterns:
+            pattern_key = self._pattern_to_key(pattern)
+            pattern_groups[pattern_key] = {
+                'pattern': pattern,
+                'words': []
+            }
+            
+            # Find all candidate words that would produce this pattern
+            for word in candidate_words:
+                if self._is_pattern_consistent(guess, pattern, word):
+                    pattern_groups[pattern_key]['words'].append(word)
+        
+        # Remove empty groups
+        valid_groups = [group for group in pattern_groups.values() if group['words']]
+        
+        if not valid_groups:
+            # Fallback - shouldn't happen
+            return [(letter, LetterStatus.MISS) for letter in guess]
+        
+        # Find the group with maximum words (worst case for player)
+        chosen_group = valid_groups[0]
+        for group in valid_groups:
+            if len(group['words']) > len(chosen_group['words']):
+                chosen_group = group
+            elif len(group['words']) == len(chosen_group['words']):
+                # Tie-breaker: choose lexicographically first pattern
+                if self._pattern_to_key(group['pattern']) < self._pattern_to_key(chosen_group['pattern']):
+                    chosen_group = group
+        
+        # Update candidate words
+        game["candidate_words"] = chosen_group['words']
+        
+        return chosen_group['pattern']
+    
+    def _generate_all_patterns(self, guess: str) -> List[List[Tuple[str, LetterStatus]]]:
+        """
+        Generate all possible feedback patterns for a guess (3^5 = 243 patterns).
+        """
+        patterns = []
+        
+        for i in range(243):  # 3^5 possible patterns
+            pattern = []
+            num = i
+            
+            for j in range(5):
+                status = num % 3
+                letter = guess[j]
+                
+                if status == 0:
+                    pattern.append((letter, LetterStatus.MISS))
+                elif status == 1:
+                    pattern.append((letter, LetterStatus.PRESENT))
+                else:
+                    pattern.append((letter, LetterStatus.HIT))
+                
+                num = num // 3
+            
+            patterns.append(pattern)
+        
+        return patterns
+    
+    def _pattern_to_key(self, pattern: List[Tuple[str, LetterStatus]]) -> str:
+        """
+        Convert a pattern to a string key for comparison.
+        """
+        return ''.join([f"{letter}:{status.value}" for letter, status in pattern])
+    
+    def _is_pattern_consistent(self, guess: str, pattern: List[Tuple[str, LetterStatus]], target: str) -> bool:
+        """
+        Check if a pattern is consistent with a target word.
+        """
+        actual_pattern = self._evaluate_guess_against_target(guess, target)
+        
+        # Compare patterns
+        for i in range(5):
+            if pattern[i][1] != actual_pattern[i][1]:
+                return False
+        
+        return True
+    
     def delete_game(self, game_id: str) -> bool:
         """
         Removes a completed game session from memory.
@@ -267,10 +382,21 @@ server = WordleServer()
 def new_game():
     """Create a new game session."""
     try:
-        # Log user action
-        game_logger.log_user_action(request, 'new_game')
+        # Get game mode from request
+        data = request.get_json() or {}
+        game_mode = data.get('game_mode', 'wordle')  # Default to wordle
         
-        game_id = server.create_new_game()
+        # Validate game mode
+        if game_mode not in ['wordle', 'absurdle']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid game mode. Must be "wordle" or "absurdle"'
+            }), 400
+        
+        # Log user action
+        game_logger.log_user_action(request, 'new_game', extra_data={'game_mode': game_mode})
+        
+        game_id = server.create_new_game(game_mode)
         state = server.get_game_state(game_id)
         
         response_data = {
