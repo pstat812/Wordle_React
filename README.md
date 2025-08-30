@@ -6,7 +6,7 @@
 - Supports Dark Mode to enhance user experience 
 - Implemented client-server architecture with Flask backend and React frontend
 
-- Next planned update: Server history logging 
+- Next planned update: Support Host cheating wordle Mode
 
 ### Development Notes
 - The current word list contains a small set of test words. A comprehensive word list will be added in a future update.
@@ -39,22 +39,23 @@ wordle_task/
 │   │   │   ├── Keyboard.js  # Virtual on-screen keyboard
 │   │   │   └── SettingsModal.js # Game settings configuration modal
 │   │   │  
-│   │   ├── apiService.js   # HTTP client for server communication
+│   │   ├── apiService.js    # HTTP client for server communication
 │   │   ├── useWordleGame.js # Custom React hook for game state management
 │   │   ├── App.js          # Main application component with game orchestration
 │   │   ├── App.css         # Global application styles
 │   │   ├── index.js        # React application entry point
 │   │   └── index.css       # Global CSS styles and themes
 │   │ 
-│   ├── package.json        # NPM dependencies and build scripts
-│   └── package-lock.json   # Dependency lock file
+│   ├── package.json       # NPM dependencies and build scripts
+│   └── package-lock.json  # Dependency lock file
 │
-├── Server/                 # Python Flask Backend
-│   ├── game_settings.py    # Server-side game configuration and validation
-│   ├── wordle_server.py    # Main Flask application with game engine
+├── Server/                # Python Flask Backend
+│   ├── game_settings.py   # Server-side game configuration and validation
+│   ├── wordle_server.py   # Main Flask application with game engine
 │   ├── main.py            # Server launcher with error handling
-│   ├── requirements.txt    # Python dependencies
+│   ├── requirements.txt   # Python dependencies
 │   └── venv/              # Python virtual environment (local)
+│   └── game_logger.py     # server logger 
 │ 
 └── README.md              # This documentation
 ```
@@ -113,16 +114,7 @@ wordle_task/
    npm install
    ```
 
-3. (Optional) Configure environment variables
-   ```bash
-   # Copy the example environment file
-   cp env.example .env.local
-   
-   # Edit .env.local to customize API URL and other settings
-   # Example: REACT_APP_API_BASE_URL=http://localhost:8000/api
-   ```
-
-4. Start the development server
+3. Start the development server
    ```bash
    npm start
    ```
@@ -130,17 +122,6 @@ wordle_task/
 5. Open your browser and navigate to `http://localhost:3000`
 
 #### Development Workflow
-
-**Starting Both Servers:**
-1. Terminal 1: Start the Python server (from Server/ directory)
-   ```bash
-   python main.py
-   ```
-
-2. Terminal 2: Start the React client (from Client/ directory)
-   ```bash
-   npm start
-   ```
 
 #### Server Configuration
 
@@ -287,3 +268,38 @@ Health check endpoint for server monitoring.
   "active_games": 5
 }
 ```
+
+## Logging System
+
+The server includes comprehensive logging to track user actions, server responses, and game events. This system is designed for future multiplayer support and provides detailed insights into game usage.
+
+### Log Structure
+
+**Log Location**: `Server/logs/game_log_YYYY-MM-DD.log`
+
+**Log Format**: Each log entry is a JSON object with:
+```json
+{
+  "timestamp": "2024-01-15T14:30:45.123456",
+  "event_type": "USER_ACTION|SERVER_RESPONSE_SUCCESS|SERVER_RESPONSE_ERROR|GAME_EVENT|ERROR",
+  "action": "new_game|submit_guess|get_state|delete_game|health_check",
+  "user": {
+    "user_ip": "127.0.0.1",
+    "session_id": null,
+    "username": null
+  },
+  "details": {
+    "game_id": "uuid-string",
+    "success": true,
+    "additional_context": "..."
+  }
+}
+```
+
+### Log Types
+
+1. **USER_ACTION**: Every user request (new game, guess submission, etc.)
+2. **SERVER_RESPONSE_SUCCESS**: Successful server responses
+3. **SERVER_RESPONSE_ERROR**: Failed server responses with error details
+4. **GAME_EVENT**: Special game events (wins, losses, etc.)
+5. **ERROR**: Server errors and exceptions

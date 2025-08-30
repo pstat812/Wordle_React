@@ -32,7 +32,8 @@ ehthumbs.db
 Thumbs.db
 
 # Logs
-logs
+logs/*.log
+logs/*.txt
 *.log
 
 # Coverage directory used by tools like istanbul
