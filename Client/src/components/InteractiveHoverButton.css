@@ -1,0 +1,148 @@
+/* Interactive Hover Button Styles */
+.interactive-hover-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transform: translateY(0);
+}
+
+.interactive-hover-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.interactive-hover-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.interactive-hover-button__content {
+  position: relative;
+  z-index: 2;
+  transition: transform 0.3s ease;
+}
+
+.interactive-hover-button:hover .interactive-hover-button__content {
+  transform: scale(1.05);
+}
+
+.interactive-hover-button__hover-effect {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+  z-index: 1;
+}
+
+.interactive-hover-button:hover .interactive-hover-button__hover-effect {
+  left: 100%;
+}
+
+/* Variant Styles */
+.interactive-hover-button--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.interactive-hover-button--secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.interactive-hover-button--success {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.interactive-hover-button--menu {
+  background: #d3d6da;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 16px;
+  color: #212529;
+  border: 1px solid #d3d6da;
+}
+
+.interactive-hover-button--menu:hover {
+  background: #bbb;
+  border-color: #bbb;
+}
+
+/* Disabled State */
+.interactive-hover-button--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.interactive-hover-button--disabled:hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.interactive-hover-button--disabled .interactive-hover-button__content {
+  transform: none !important;
+}
+
+.interactive-hover-button--disabled .interactive-hover-button__hover-effect {
+  display: none;
+}
+
+/* Dark Mode Styles */
+.app--dark .interactive-hover-button--primary {
+  background: linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%);
+}
+
+.app--dark .interactive-hover-button--secondary {
+  background: linear-gradient(135deg, #e85a4f 0%, #d32f2f 100%);
+}
+
+.app--dark .interactive-hover-button--success {
+  background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%);
+}
+
+.app--dark .interactive-hover-button--menu {
+  background: #333;
+  color: #ffffff;
+  border-color: #333;
+}
+
+.app--dark .interactive-hover-button--menu:hover {
+  background: #444;
+  border-color: #444;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .interactive-hover-button {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  
+  .interactive-hover-button--menu {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+  }
+}

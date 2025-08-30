@@ -1,0 +1,264 @@
+/* SettingsModal Styles */
+.settings-modal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.settings-modal {
+  background-color: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.settings-modal__header h2 {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  color: #212529;
+}
+
+.settings-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.settings-modal__close:hover {
+  background-color: #f0f0f0;
+}
+
+.settings-modal__content {
+  padding: 20px;
+}
+
+.settings-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-modal__switch-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-modal__field label {
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  color: #212529;
+}
+
+.settings-modal__input {
+  padding: 8px 12px;
+  border: 2px solid #d3d6da;
+  border-radius: 4px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  width: 100px;
+  align-self: flex-start;
+}
+
+.settings-modal__input:focus {
+  outline: none;
+  border-color: #6aaa64;
+}
+
+.settings-modal__error {
+  color: #dc3545;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+.settings-modal__footer {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  justify-content: flex-end;
+}
+
+.settings-modal__button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.settings-modal__button--apply {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.settings-modal__button--apply:hover {
+  background-color: #45a049;
+}
+
+.settings-modal__button--cancel {
+  background-color: #f44336;
+  color: white;
+}
+
+.settings-modal__button--close {
+  background-color: #666;
+  color: white;
+}
+
+.settings-modal__button--close:hover {
+  background-color: #555;
+}
+
+/* Toggle Switch Styles */
+.settings-modal__switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.settings-modal__switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-modal__slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.settings-modal__slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.settings-modal__switch input:checked + .settings-modal__slider {
+  background-color: #6aaa64;
+}
+
+.settings-modal__switch input:checked + .settings-modal__slider:before {
+  transform: translateX(26px);
+}
+
+.settings-modal__switch-label {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #666;
+  font-weight: normal;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .settings-modal {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .settings-modal__header,
+  .settings-modal__content,
+  .settings-modal__footer {
+    padding: 15px;
+  }
+}
+
+/* Dark mode styles */
+.app--dark .settings-modal {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+.app--dark .settings-modal__header {
+  border-bottom-color: #333;
+}
+
+.app--dark .settings-modal__header h2 {
+  color: #ffffff;
+}
+
+.app--dark .settings-modal__close {
+  color: #cccccc;
+}
+
+.app--dark .settings-modal__close:hover {
+  background-color: #333;
+}
+
+.app--dark .settings-modal__field label {
+  color: #ffffff;
+}
+
+.app--dark .settings-modal__footer {
+  border-top-color: #333;
+}
+
+.app--dark .settings-modal__switch-label {
+  color: #cccccc;
+}
+
+/* Interactive button adjustments for settings modal */
+.settings-modal__interactive-button {
+  min-width: 100px;
+}

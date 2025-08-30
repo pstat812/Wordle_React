@@ -1,0 +1,83 @@
+/* GameTile Styles */
+.game-tile {
+  width: 60px;
+  height: 60px;
+  border: 2px solid #d3d6da;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  font-weight: bold;
+  margin: 2px;
+  transition: all 0.2s ease-in-out;
+  text-transform: uppercase;
+}
+
+.game-tile--empty {
+  background-color: #ffffff;
+  color: #212529;
+  border-color: #d3d6da;
+}
+
+.game-tile--typing {
+  background-color: #f8f9fa;
+  color: #212529;
+  border-color: #d3d6da;
+  transform: scale(1.05);
+}
+
+.game-tile--hit {
+  background-color: #6aaa64;
+  color: #ffffff;
+  border-color: #6aaa64;
+  animation: flip 0.6s ease-in-out;
+}
+
+.game-tile--present {
+  background-color: #c9b458;
+  color: #ffffff;
+  border-color: #c9b458;
+  animation: flip 0.6s ease-in-out;
+}
+
+.game-tile--miss {
+  background-color: #787c7e;
+  color: #ffffff;
+  border-color: #787c7e;
+  animation: flip 0.6s ease-in-out;
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateX(0);
+  }
+  50% {
+    transform: rotateX(-90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .game-tile {
+    width: 50px;
+    height: 50px;
+    font-size: 18px;
+  }
+}
+
+/* Dark mode styles */
+.app--dark .game-tile--empty {
+  background-color: #121212;
+  color: #ffffff;
+  border-color: #555;
+}
+
+.app--dark .game-tile--typing {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  border-color: #555;
+}

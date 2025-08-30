@@ -1,0 +1,390 @@
+/* App Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #ffffff;
+  color: #212529;
+  line-height: 1.6;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  transition: background-color 0.3s ease;
+}
+
+/* Dark Mode Styles */
+.app--dark {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.app--dark body {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.app__container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.app__header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  width: 100%;
+}
+
+.app__header-line {
+  height: 1px;
+  background-color: #e0e0e0;
+  width: 100%;
+  margin-bottom: 15px;
+  transition: background-color 0.3s ease;
+}
+
+.app--dark .app__header-line {
+  background-color: #333;
+}
+
+.app__footer {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.app__footer-line {
+  height: 1px;
+  background-color: #e0e0e0;
+  width: 100%;
+  margin-top: 15px;
+  transition: background-color 0.3s ease;
+}
+
+.app--dark .app__footer-line {
+  background-color: #333;
+}
+
+.app__title {
+  font-size: 36px;
+  font-weight: bold;
+  color: #212529;
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+}
+
+.app__controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+.app__button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-transform: uppercase;
+}
+
+.app__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.app__button:active {
+  transform: translateY(0);
+}
+
+.app__button--new-game {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.app__button--new-game:hover {
+  background-color: #45a049;
+}
+
+.app__button--settings {
+  background-color: #2196F3;
+  color: white;
+}
+
+.app__button--settings:hover {
+  background-color: #1976D2;
+}
+
+/* Dark mode button styles */
+.app--dark .app__button {
+  background-color: #333;
+  color: #ffffff;
+  border: 1px solid #555;
+}
+
+.app--dark .app__button:hover {
+  background-color: #444;
+}
+
+.app--dark .app__button--new-game {
+  background-color: #2d5a2d;
+  color: white;
+}
+
+.app--dark .app__button--new-game:hover {
+  background-color: #1a4d1a;
+}
+
+.app--dark .app__button--settings {
+  background-color: #1565C0;
+  color: white;
+}
+
+.app--dark .app__button--settings:hover {
+  background-color: #0d47a1;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.app__game-info {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: bold;
+  color: #666;
+  font-size: 14px;
+}
+
+
+
+/* Game Over Modal */
+.game-over-modal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.game-over-modal {
+  background-color: #ffffff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid #e5e5e5;
+}
+
+@keyframes slideInScale {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.game-over-modal__content {
+  padding: 40px 32px 32px;
+  text-align: center;
+}
+
+.game-over-modal__title {
+  font-size: 28px;
+  margin-bottom: 16px;
+  color: #000000;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.game-over-modal__message {
+  margin-bottom: 32px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #4a4a4a;
+  font-weight: 400;
+}
+
+.game-over-modal__message strong {
+  color: #000000;
+  font-weight: 600;
+}
+
+.game-over-modal__buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.game-over-modal__button {
+  padding: 14px 28px;
+  border: 2px solid;
+  border-radius: 12px;
+  font-family: Arial, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-transform: none;
+  min-width: 120px;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-over-modal__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.game-over-modal__button:active {
+  transform: translateY(0);
+}
+
+.game-over-modal__button--play-again {
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.game-over-modal__button--play-again:hover {
+  background-color: #1a1a1a;
+  border-color: #1a1a1a;
+}
+
+.game-over-modal__button--close {
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #e5e5e5;
+}
+
+.game-over-modal__button--close:hover {
+  background-color: #f8f8f8;
+  border-color: #d0d0d0;
+}
+
+/* Dark mode for game over modal */
+.app--dark .game-over-modal {
+  background-color: #1a1a1a;
+  border-color: #333333;
+}
+
+.app--dark .game-over-modal__title {
+  color: #ffffff;
+}
+
+.app--dark .game-over-modal__message {
+  color: #b5b5b5;
+}
+
+.app--dark .game-over-modal__message strong {
+  color: #ffffff;
+}
+
+.app--dark .game-over-modal__button--play-again {
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+.app--dark .game-over-modal__button--play-again:hover {
+  background-color: #f0f0f0;
+  border-color: #f0f0f0;
+}
+
+.app--dark .game-over-modal__button--close {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border-color: #404040;
+}
+
+.app--dark .game-over-modal__button--close:hover {
+  background-color: #2a2a2a;
+  border-color: #505050;
+}
+
+
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .app__container {
+    padding: 15px;
+  }
+  
+  .app__title {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  
+  .app__controls {
+    gap: 8px;
+  }
+  
+  .app__button {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+  
+  .game-over-modal__content {
+    padding: 20px;
+  }
+  
+  .game-over-modal__title {
+    font-size: 20px;
+  }
+  
+  .game-over-modal__buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .game-over-modal__button {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .app__controls {
+    top: 15px;
+    right: 15px;
+  }
+}

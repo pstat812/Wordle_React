@@ -1,0 +1,10 @@
+{
+  "short_name": "React Wordle",
+  "name": "React Wordle - Word Guessing Game",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#6aaa64",
+  "background_color": "#ffffff",
+  "description": "A React implementation of the classic Wordle word guessing game"
+}

@@ -1,0 +1,25 @@
+/* GameBoard Styles */
+.game-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 0;
+}
+
+.game-board__row {
+  display: flex;
+  gap: 4px;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .game-board {
+    padding: 15px 0;
+    gap: 3px;
+  }
+  
+  .game-board__row {
+    gap: 3px;
+  }
+}
