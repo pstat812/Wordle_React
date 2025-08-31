@@ -10,6 +10,8 @@ secure from the client until game completion.
 import random
 import uuid
 import os
+import threading
+import time
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -410,6 +412,86 @@ except Exception as e:
     auth_service = None
 
 
+def heartbeat_cleanup_worker():
+    """
+    Background worker that periodically cleans up expired sessions based on missed heartbeats.
+    Runs every 15 seconds to check for users who haven't sent heartbeats.
+    """
+    while True:
+        try:
+            if auth_service:
+                # Clean up sessions that haven't sent heartbeats in the last 10 seconds
+                cleanup_result = auth_service.cleanup_expired_sessions()
+                
+                if cleanup_result["cleaned_count"] > 0:
+                    game_logger.logger.info(f"🧹 Heartbeat cleanup: Removed {cleanup_result['cleaned_count']} expired sessions")
+                    
+                    # Log individual logout events for each disconnected user
+                    for user_info in cleanup_result["disconnected_users"]:
+                        username = user_info["username"]
+                        last_heartbeat = user_info["last_heartbeat"]
+                        session_duration = user_info["session_duration"]
+                        
+                        # Simple console output for monitoring
+                        print(f"🔌 {username} - Auto logout (missed heartbeat)")
+                        
+                        # Detailed log to file
+                        game_logger.logger.info(f"🔌 User '{username}' automatically logged out due to missed heartbeat. Last heartbeat: {last_heartbeat}, Session duration: {session_duration:.1f}s")
+                        
+                        # Create a mock request object for logging USER_ACTION (same as manual logout)
+                        class MockRequest:
+                            def __init__(self, username):
+                                self.remote_addr = 'system'  # System-initiated
+                                self.method = 'AUTO_LOGOUT'
+                                self.path = '/heartbeat/timeout'
+                                self.user_agent = 'Heartbeat Monitor'
+                                self.username = username
+                        
+                        mock_request = MockRequest(username)
+                        
+                        # Log USER_ACTION logout event (same as manual logout button)
+                        game_logger.log_user_action(
+                            mock_request, 
+                            'logout', 
+                            extra_data={
+                                'user': username,
+                                'reason': 'missed_heartbeat',
+                                'automatic': True,
+                                'last_heartbeat': str(last_heartbeat),
+                                'session_duration': f"{session_duration:.1f}s"
+                            }
+                        )
+                        
+                        # Log server response for the automatic logout
+                        game_logger.log_server_response(
+                            mock_request, 
+                            'logout', 
+                            True, 
+                            {
+                                'success': True, 
+                                'message': 'User automatically logged out due to missed heartbeat',
+                                'reason': 'missed_heartbeat'
+                            }
+                        )
+                        
+                        # Log as a game event for consistency with manual logouts
+                        game_logger.log_game_event(
+                            None,  # No specific game_id for auth events
+                            'user_disconnected',
+                            'system',  # System-initiated logout
+                            username=username,
+                            reason='missed_heartbeat',
+                            last_heartbeat=str(last_heartbeat),
+                            session_duration_seconds=session_duration
+                        )
+                
+        except Exception as e:
+            game_logger.logger.error(f"❌ Error in heartbeat cleanup worker: {e}")
+        
+        # Wait 15 seconds before next cleanup (reduced for faster testing)
+        time.sleep(15)
+
+
 def require_auth(f):
     """
     Decorator to require authentication for protected endpoints.
@@ -661,7 +743,9 @@ def health_check():
             'status': 'healthy',
             'active_games': len(server.games),
             'log_stats': log_stats,
-            'auth_available': auth_service is not None
+            'auth_available': auth_service is not None,
+            'active_sessions': auth_service.get_active_sessions_count() if auth_service else 0,
+            'heartbeat_monitoring': True
         }
         
         # Log response
@@ -792,6 +876,110 @@ def verify_token():
         return jsonify(error_response), 500
 
 
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """Logout a user and invalidate their session. Supports both Authorization header and query parameter."""
+    try:
+        if not auth_service:
+            return jsonify({
+                'success': False,
+                'error': 'Authentication service unavailable'
+            }), 500
+        
+        token = None
+        username = None
+        
+        # Try to get token from Authorization header first (normal logout)
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            
+            # Verify token to get user info for logging
+            verify_result = auth_service.verify_token(token)
+            if verify_result['success']:
+                username = verify_result['user']['username']
+        
+        # If no Authorization header, try query parameter (sendBeacon logout)
+        if not token:
+            token = request.args.get('token')
+            if token:
+                # Verify token to get user info for logging
+                verify_result = auth_service.verify_token(token)
+                if verify_result['success']:
+                    username = verify_result['user']['username']
+        
+        # If still no token, return error
+        if not token:
+            return jsonify({
+                'success': False,
+                'error': 'Authorization token required'
+            }), 401
+        
+        # Log user action (use username if available, otherwise 'unknown')
+        game_logger.log_user_action(request, 'logout', extra_data={'user': username or 'unknown'})
+        
+        result = auth_service.logout_user(token)
+        
+        if result['success']:
+            game_logger.log_server_response(request, 'logout', True, result)
+            return jsonify(result)
+        else:
+            game_logger.log_server_response(request, 'logout', False, result)
+            return jsonify(result), 400
+            
+    except Exception as e:
+        game_logger.log_error(request, e, 'logout')
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        game_logger.log_server_response(request, 'logout', False, error_response)
+        return jsonify(error_response), 500
+
+
+@app.route('/api/auth/heartbeat', methods=['POST'])
+@require_auth
+def heartbeat():
+    """Update session heartbeat to keep it alive."""
+    try:
+        if not auth_service:
+            return jsonify({
+                'success': False,
+                'error': 'Authentication service unavailable'
+            }), 500
+        
+        # Get token from Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                'success': False,
+                'error': 'Authorization token required'
+            }), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        # Log heartbeat received (debug level only)
+        username = request.user.get('username', 'unknown') if hasattr(request, 'user') else 'unknown'
+        game_logger.logger.debug(f"💗 Heartbeat: {username}")
+        
+        # Update session heartbeat
+        result = auth_service.update_session_activity(token)
+        
+        if result['success']:
+            return jsonify({'success': True, 'message': 'Heartbeat updated'})
+        else:
+            game_logger.logger.warning(f"❌ Heartbeat update failed for {username}: {result.get('error')}")
+            return jsonify(result), 400
+            
+    except Exception as e:
+        game_logger.logger.error(f"❌ Heartbeat endpoint error: {e}")
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        return jsonify(error_response), 500
+
+
 @app.route('/api/auth/profile', methods=['GET'])
 @require_auth
 def get_profile():
@@ -835,9 +1023,16 @@ if __name__ == '__main__':
     print("  POST /api/auth/login - Login user")
     print("  GET /api/auth/verify - Verify JWT token")
     print("  GET /api/auth/profile - Get user profile")
+    print("  POST /api/auth/heartbeat - Send heartbeat to keep session alive")
     print(f"Logging enabled - logs will be saved to: logs/")
     
+    # Start heartbeat cleanup worker in background thread
+    if auth_service:
+        cleanup_thread = threading.Thread(target=heartbeat_cleanup_worker, daemon=True)
+        cleanup_thread.start()
+        print("💗 Heartbeat cleanup worker started - checking every 15 seconds")
+    
     # Log server startup
-    game_logger.logger.info("🚀 Wordle Server Starting - Comprehensive logging and authentication enabled")
+    game_logger.logger.info("🚀 Wordle Server Starting - Comprehensive logging, authentication, and heartbeat monitoring enabled")
     
     app.run(host=HOST, port=PORT, debug=DEBUG)

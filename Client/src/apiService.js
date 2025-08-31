@@ -167,3 +167,33 @@ export async function getUserProfile(token) {
     },
   });
 }
+
+/**
+ * Logs out a user and invalidates their session
+ * @param {string} token - JWT token
+ * @returns {Promise<object>} Logout response
+ */
+export async function logoutUser(token) {
+  return await apiRequest('/auth/logout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
+
+/**
+ * Sends a heartbeat to keep the session alive
+ * @param {string} token - JWT token
+ * @returns {Promise<object>} Heartbeat response
+ */
+export async function sendHeartbeat(token) {
+  return await apiRequest('/auth/heartbeat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
