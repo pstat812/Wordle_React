@@ -6,15 +6,23 @@ Simple launcher for the Wordle game server.
 """
 
 import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv('config.env')
 
 def main():
     """Main function to launch the Wordle server."""
     try:
+        HOST = os.getenv('HOST', '127.0.0.1')
+        PORT = int(os.getenv('PORT', 5000))
+        DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+        
         from wordle_server import app
         print("Starting Wordle Game Server...")
-        print("Server will be available at http://127.0.0.1:5000")
+        print(f"Server will be available at http://{HOST}:{PORT}")
         
-        app.run(host='127.0.0.1', port=5000, debug=False)
+        app.run(host=HOST, port=PORT, debug=DEBUG)
     except ImportError as e:
         print(f"Error: Could not import server module: {e}")
         print("Please ensure Flask is installed: pip install flask")

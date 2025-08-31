@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { LETTER_STATUS } from '../useWordleGame';
+import { LETTER_STATUS } from '../hooks/useWordleGame';
 import './GameTile.css';
 
 const GameTile = ({ letter = "", status = LETTER_STATUS.UNUSED, isTyping = false }) => {

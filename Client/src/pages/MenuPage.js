@@ -1,14 +1,16 @@
 /**
  * Menu Page Component for Game Mode Selection
  * 
- * This component provides the main menu where users can select between
+ * interface for game mode selection
  * different game modes: Wordle, Absurdle, and Multiplayer.
  */
 
 import React from 'react';
+import Header from '../components/Header';
+import Alert from '../components/Alert';
 import './MenuPage.css';
 
-function MenuPage({ onGameModeSelect }) {
+function MenuPage({ onGameModeSelect, onLogout, isDarkMode, onToggleDarkMode, showAlert, hideAlert, alert }) {
   const gameModes = [
     {
       id: 'wordle',
@@ -25,18 +27,28 @@ function MenuPage({ onGameModeSelect }) {
     {
       id: 'multiplayer',
       title: 'Multiplayer',
-      description: 'Challenge friends in real-time. Coming soon!',
-      available: false
+      description: 'Challenge friends in real-time.',
+      available: true
     }
   ];
 
   return (
     <div className="menu-page">
+      {/* Alert System */}
+      <Alert
+        message={alert.message}
+        type={alert.type}
+        isVisible={alert.isVisible}
+        onClose={hideAlert}
+        autoCloseDelay={alert.autoCloseDelay}
+      />
+      
       <div className="menu-page__container">
-        <header className="menu-page__header">
-          <h1 className="menu-page__title">Word Games</h1>
-          <p className="menu-page__subtitle">Choose game mode</p>
-        </header>
+        <Header 
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={onToggleDarkMode}
+          onLogout={onLogout}
+        />
 
         <main className="menu-page__main">
           <div className="game-modes">

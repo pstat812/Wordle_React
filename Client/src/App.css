@@ -5,6 +5,18 @@
   padding: 0;
 }
 
+/* Remove focus outline from all buttons and interactive elements */
+button:focus,
+button:active,
+input:focus,
+input:active,
+.keyboard__key:focus,
+.keyboard__key:active,
+.game-over-modal__button:focus,
+.game-over-modal__button:active {
+  outline: none !important;
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: #ffffff;
@@ -25,31 +37,62 @@ body {
 
 /* Dark Mode Styles */
 .app--dark {
-  background-color: #121212;
-  color: #ffffff;
+  background-color: #0f172a;
+  color: #f1f5f9;
 }
 
 .app--dark body {
-  background-color: #121212;
-  color: #ffffff;
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Loading Screen Styles */
+.app__loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.app__loading-content {
+  text-align: center;
+  color: white;
+}
+
+.app__loading-content h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.app__loading-content p {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 300;
+}
+
+.app--dark .app__loading {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
 .app__container {
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 120px 20px 20px 20px; /* Increase top padding to account for header position */
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
-  justify-content: center;
+  min-height: calc(100vh - 120px); /* Account for adjusted header height */
+  justify-content: flex-start; /* Change to flex-start for consistent positioning */
 }
 
 .app__header {
   position: relative;
   text-align: center;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
   width: 100%;
 }
 
@@ -57,12 +100,12 @@ body {
   height: 1px;
   background-color: #e0e0e0;
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   transition: background-color 0.3s ease;
 }
 
 .app--dark .app__header-line {
-  background-color: #333;
+  background-color: #334155;
 }
 
 .app__footer {
@@ -79,7 +122,7 @@ body {
 }
 
 .app--dark .app__footer-line {
-  background-color: #333;
+  background-color: #334155;
 }
 
 .app__title {
@@ -170,6 +213,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 10px;
 }
 
 .app__game-info {
@@ -252,9 +296,10 @@ body {
 
 .game-over-modal__buttons {
   display: flex;
-  gap: 12px;
+  gap: 20px;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 30px;
 }
 
 .game-over-modal__button {
@@ -267,40 +312,45 @@ body {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   text-transform: none;
-  min-width: 120px;
+  min-width: 140px;
   position: relative;
   overflow: hidden;
+  background-color: #667eea;
+  color: #ffffff;
+  border-color: #667eea;
 }
 
 .game-over-modal__button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  background-color: #5a6fd8;
+  border-color: #5a6fd8;
 }
 
 .game-over-modal__button:active {
   transform: translateY(0);
 }
 
-.game-over-modal__button--play-again {
-  background-color: #000000;
+.game-over-modal__button--new-game {
+  background-color: #667eea;
   color: #ffffff;
-  border-color: #000000;
+  border-color: #667eea;
 }
 
-.game-over-modal__button--play-again:hover {
-  background-color: #1a1a1a;
-  border-color: #1a1a1a;
+.game-over-modal__button--new-game:hover {
+  background-color: #5a6fd8;
+  border-color: #5a6fd8;
 }
 
 .game-over-modal__button--menu {
-  background-color: #ffc107;
-  color: #000000;
-  border-color: #ffc107;
+  background-color: #667eea;
+  color: #ffffff;
+  border-color: #667eea;
 }
 
 .game-over-modal__button--menu:hover {
-  background-color: #e0a800;
-  border-color: #e0a800;
+  background-color: #5a6fd8;
+  border-color: #5a6fd8;
 }
 
 .game-over-modal__button--close {
@@ -332,26 +382,38 @@ body {
   color: #ffffff;
 }
 
-.app--dark .game-over-modal__button--play-again {
-  background-color: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
+.app--dark .game-over-modal__button {
+  background-color: #60a5fa;
+  color: #ffffff;
+  border-color: #60a5fa;
 }
 
-.app--dark .game-over-modal__button--play-again:hover {
-  background-color: #f0f0f0;
-  border-color: #f0f0f0;
+.app--dark .game-over-modal__button:hover {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(96, 165, 250, 0.3);
+}
+
+.app--dark .game-over-modal__button--new-game {
+  background-color: #60a5fa;
+  color: #ffffff;
+  border-color: #60a5fa;
+}
+
+.app--dark .game-over-modal__button--new-game:hover {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
 }
 
 .app--dark .game-over-modal__button--menu {
-  background-color: #ffc107;
-  color: #000000;
-  border-color: #ffc107;
+  background-color: #60a5fa;
+  color: #ffffff;
+  border-color: #60a5fa;
 }
 
 .app--dark .game-over-modal__button--menu:hover {
-  background-color: #e0a800;
-  border-color: #e0a800;
+  background-color: #3b82f6;
+  border-color: #3b82f6;
 }
 
 .app--dark .game-over-modal__button--close {
@@ -397,11 +459,13 @@ body {
   
   .game-over-modal__buttons {
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
+    margin-top: 25px;
   }
   
   .game-over-modal__button {
     min-width: auto;
+    font-size: 16px;
     width: 100%;
   }
   

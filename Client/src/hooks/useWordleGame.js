@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { createNewGame, getGameState, submitGuess as apiSubmitGuess } from './apiService';
+import { createNewGame, getGameState, submitGuess as apiSubmitGuess } from '../apiService';
 
 // Letter Status Constants (matching server)
 export const LETTER_STATUS = {
@@ -53,13 +53,33 @@ export function useWordleGame(gameMode = 'wordle') {
       setLoading(true);
       setError(null);
       
-      // Reset client state first
+      // Reset current input first
       setCurrentInput("");
-      setGameId(null);
       
+      // Create new game on server
       const response = await createNewGame(gameMode);
+      
+      // Ensure the server response has the correct initial state
+      const serverState = response.state;
+      const initialLetterStatus = {};
+      for (let i = 65; i <= 90; i++) { // A-Z ASCII codes
+        initialLetterStatus[String.fromCharCode(i)] = LETTER_STATUS.UNUSED;
+      }
+      
+      // Update game state first, then set gameId to prevent race conditions
+      setGameState({
+        current_round: serverState.current_round || 0,
+        max_rounds: serverState.max_rounds || (gameMode === 'absurdle' ? 1 : 6),
+        game_over: serverState.game_over || false,
+        won: serverState.won || false,
+        guesses: serverState.guesses || [],
+        guess_results: serverState.guess_results || [],
+        letter_status: serverState.letter_status || initialLetterStatus,
+        answer: serverState.answer || null
+      });
+      
+      // Set gameId last to prevent initialization effect from triggering
       setGameId(response.game_id);
-      setGameState(response.state);
     } catch (err) {
       setError(err.message);
       console.error('Failed to start new game:', err);
@@ -70,11 +90,11 @@ export function useWordleGame(gameMode = 'wordle') {
 
   // Initialize game on first load only
   useEffect(() => {
-    if (!initialized && !gameId) {
+    if (!initialized && !gameId && !loading) {
       setInitialized(true);
       startNewGame();
     }
-  }, [initialized, gameId, startNewGame]);
+  }, [initialized, gameId, loading]);
 
   // Add letter to current guess
   const addLetter = useCallback((letter) => {

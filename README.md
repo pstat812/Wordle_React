@@ -6,7 +6,8 @@
 - Supports Dark Mode to enhance user experience 
 - Implemented client-server architecture with Flask backend and React frontend
 - Comprehensive logging system for game analytics and debugging
-- New Host cheating wordle(Absurdle) game mode
+- New Host cheating wordle(Absurdle) game mode(Updated game logic)
+- User authentication system with login/registration
 
 ### Development Notes
 - The current word list contains a small set of test words. A comprehensive word list will be added in a future update.
@@ -14,8 +15,9 @@
 
 ### Planned Development
 - Multiplayer functionality for wordle game
-- User authentication and account management system
 - Personal statistics and game history tracking dashboard
+- Enhanced user profile management
+
 
 ### Game Rules
 
@@ -39,42 +41,55 @@
 
 ```
 wordle_task/
-├── Client/                 # React Frontend Application
+├── Client/                          # React Frontend Application
 │   ├── public/
-│   │   ├── index.html      # Main HTML template with loading states
-│   │   └── manifest.json   # PWA manifest configuration
+│   │   ├── index.html               # Main HTML template with loading states
+│   │   └── manifest.json            # PWA manifest configuration
 │   │
 │   ├── src/
-│   │   ├── components/     # Reusable React components
-│   │   │   ├── AbsurdleBoard.js # Dynamic growing game board for Absurdle mode
-│   │   │   ├── Alert.js    # Notification system component
-│   │   │   ├── DropdownMenu.js # Navigation dropdown menu
-│   │   │   ├── GameBoard.js # Dynamic game board with tile grid
-│   │   │   ├── GameTile.js  # Individual letter tile component
-│   │   │   ├── InteractiveHoverButton.js # Enhanced button component
-│   │   │   ├── Keyboard.js  # Virtual on-screen keyboard 
-│   │   │   ├── MenuPage.js  # Game mode selection interface
-│   │   │   └── SettingsModal.js # Game settings configuration modal
+│   │   ├── components/              # Reusable React components
+│   │   │   ├── AbsurdleBoard.js     # Dynamic growing game board for Absurdle mode
+│   │   │   ├── Alert.js             # Notification system component
+│   │   │   ├── GameBoard.js         # Dynamic game board with tile grid
+│   │   │   ├── GameTile.js          # Individual letter tile component
+│   │   │   ├── Header.js            # Application header with navigation and controls
+│   │   │   ├── Keyboard.js          # Virtual on-screen keyboard 
+│   │   │   └── RegisterModal.js     # User registration modal component
 │   │   │  
-│   │   ├── apiService.js    # HTTP client for server communication
-│   │   ├── useWordleGame.js # Custom React hook for game state management
-│   │   ├── App.js          # Main application component with game orchestration
-│   │   ├── App.css         # Global application styles
-│   │   ├── index.js        # React application entry point
-│   │   └── index.css       # Global CSS styles and themes
+│   │   ├── hooks/                   # Custom React hooks
+│   │   │   ├── useAuth.js           # Authentication state management hook
+│   │   │   ├── useTheme.js          # Theme and dark mode management hook
+│   │   │   └── useWordleGame.js     # Game state management hook
+│   │   │
+│   │   ├── pages/                   # Page components for different app sections
+│   │   │   ├── AbsurdlePage.js      # Absurdle game mode page
+│   │   │   ├── LoginPage.js         # User authentication page
+│   │   │   ├── MenuPage.js          # Game mode selection interface
+│   │   │   ├── MultiplayerPage.js   # Multiplayer mode page (placeholder)
+│   │   │   └── WordlePage.js        # Wordle game mode page
+│   │   │
+│   │   ├── theme/                   # Theme configuration
+│   │   │   └── colors.js            # Color scheme definitions
+│   │   │  
+│   │   ├── apiService.js            # HTTP client for server communication
+│   │   ├── config.js                # Application configuration settings
+│   │   ├── App.js                   # Main application component with routing
+│   │   ├── index.js                 # React application entry point
+│   │   └── index.css                # Global styles and themes
 │   │ 
-│   ├── package.json       # NPM dependencies and build scripts
-│   └── package-lock.json  # Dependency lock file
+│   ├── package.json                 # NPM dependencies and build scripts
+│   └── package-lock.json            # Dependency lock file
 │
-├── Server/                # Python Flask Backend
-│   ├── game_settings.py   # Server-side game configuration and validation
-│   ├── wordle_server.py   # Main Flask application with game engine
-│   ├── main.py            # Server launcher with error handling
-│   ├── requirements.txt   # Python dependencies
-│   └── venv/              # Python virtual environment (local)
-│   └── game_logger.py     # server logger 
+├── Server/                          # Python Flask Backend
+│   ├── logs/                        # Application logs directory
+│   ├── auth_service.py              # User authentication service
+│   ├── game_logger.py               # Comprehensive logging system
+│   ├── game_settings.py             # Game configuration and validation
+│   ├── main.py                      # Server launcher with error handling
+│   ├── requirements.txt             # Python dependencies
+│   └── wordle_server.py             # Main Flask application with game engine
 │ 
-└── README.md              # This documentation
+└── README.md                        # This documentation
 ```
 
 ### Setup and Installation

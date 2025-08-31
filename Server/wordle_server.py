@@ -9,13 +9,19 @@ secure from the client until game completion.
 
 import random
 import uuid
+import os
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
+from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
 from game_settings import WORD_LIST, MAX_ROUNDS
 from game_logger import game_logger
+from auth_service import AuthService
+
+load_dotenv('config.env')
 
 
 class LetterStatus(Enum):
@@ -270,40 +276,51 @@ class WordleServer:
         """
         candidate_words = game["candidate_words"]
         
-        # Generate all possible patterns for this guess
-        all_patterns = self._generate_all_patterns(guess)
-        
-        # Group candidate words by pattern
+        # Group candidate words by the patterns they actually produce
+        # This is more efficient and accurate than generating all theoretical patterns
         pattern_groups = {}
         
-        for pattern in all_patterns:
+        for word in candidate_words:
+            # Calculate the actual pattern this word would produce
+            pattern = self._evaluate_guess_against_target(guess, word)
             pattern_key = self._pattern_to_key(pattern)
-            pattern_groups[pattern_key] = {
-                'pattern': pattern,
-                'words': []
-            }
             
-            # Find all candidate words that would produce this pattern
-            for word in candidate_words:
-                if self._is_pattern_consistent(guess, pattern, word):
-                    pattern_groups[pattern_key]['words'].append(word)
+            # Add to pattern group
+            if pattern_key not in pattern_groups:
+                pattern_groups[pattern_key] = {
+                    'pattern': pattern,
+                    'words': []
+                }
+            pattern_groups[pattern_key]['words'].append(word)
         
-        # Remove empty groups
-        valid_groups = [group for group in pattern_groups.values() if group['words']]
+        # All groups are valid since they come from actual words
+        valid_groups = list(pattern_groups.values())
         
         if not valid_groups:
             # Fallback - shouldn't happen
             return [(letter, LetterStatus.MISS) for letter in guess]
         
         # Find the group with maximum words (worst case for player)
-        chosen_group = valid_groups[0]
+        # Absurdle should avoid giving the player a win unless absolutely necessary
+        
+        # First, separate winning and non-winning groups
+        winning_groups = []
+        non_winning_groups = []
+        
         for group in valid_groups:
-            if len(group['words']) > len(chosen_group['words']):
-                chosen_group = group
-            elif len(group['words']) == len(chosen_group['words']):
-                # Tie-breaker: choose lexicographically first pattern
-                if self._pattern_to_key(group['pattern']) < self._pattern_to_key(chosen_group['pattern']):
-                    chosen_group = group
+            is_win_group = all(status == LetterStatus.HIT for _, status in group['pattern'])
+            if is_win_group:
+                winning_groups.append(group)
+            else:
+                non_winning_groups.append(group)
+        
+        # Choose from non-winning groups first (if any exist)
+        if non_winning_groups:
+            # Find the non-winning group with maximum words
+            chosen_group = max(non_winning_groups, key=lambda g: len(g['words']))
+        else:
+            # Only winning groups exist, choose the one with maximum words
+            chosen_group = max(winning_groups, key=lambda g: len(g['words']))
         
         # Update candidate words
         game["candidate_words"] = chosen_group['words']
@@ -376,6 +393,58 @@ class WordleServer:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 server = WordleServer()
+
+# Load configuration from environment variables
+MONGO_URI = os.getenv('MONGO_URI')
+JWT_SECRET = os.getenv('JWT_SECRET')
+HOST = os.getenv('HOST', '127.0.0.1')
+PORT = int(os.getenv('PORT', 5000))
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# Initialize authentication service
+try:
+    auth_service = AuthService(MONGO_URI, JWT_SECRET)
+    print("✅ Authentication service initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize authentication service: {e}")
+    auth_service = None
+
+
+def require_auth(f):
+    """
+    Decorator to require authentication for protected endpoints.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not auth_service:
+            return jsonify({
+                'success': False,
+                'error': 'Authentication service unavailable'
+            }), 500
+            
+        # Get token from Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                'success': False,
+                'error': 'Authorization token required'
+            }), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        # Verify token
+        result = auth_service.verify_token(token)
+        if not result['success']:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 401
+        
+        # Add user data to request context
+        request.user = result['user']
+        return f(*args, **kwargs)
+    
+    return decorated_function
 
 
 @app.route('/api/new_game', methods=['POST'])
@@ -591,7 +660,8 @@ def health_check():
         response_data = {
             'status': 'healthy',
             'active_games': len(server.games),
-            'log_stats': log_stats
+            'log_stats': log_stats,
+            'auth_available': auth_service is not None
         }
         
         # Log response
@@ -609,6 +679,149 @@ def health_check():
         return jsonify(error_response), 500
 
 
+# Authentication endpoints
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """Register a new user."""
+    try:
+        if not auth_service:
+            return jsonify({
+                'success': False,
+                'error': 'Authentication service unavailable'
+            }), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Request body is required'
+            }), 400
+        
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Log user action
+        game_logger.log_user_action(request, 'register', extra_data={'username': username})
+        
+        result = auth_service.register_user(username, password)
+        
+        if result['success']:
+            game_logger.log_server_response(request, 'register', True, result)
+            return jsonify(result), 201
+        else:
+            game_logger.log_server_response(request, 'register', False, result)
+            return jsonify(result), 400
+            
+    except Exception as e:
+        game_logger.log_error(request, e, 'register')
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        game_logger.log_server_response(request, 'register', False, error_response)
+        return jsonify(error_response), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Login a user and return JWT token."""
+    try:
+        if not auth_service:
+            return jsonify({
+                'success': False,
+                'error': 'Authentication service unavailable'
+            }), 500
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Request body is required'
+            }), 400
+        
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Log user action
+        game_logger.log_user_action(request, 'login', extra_data={'username': username})
+        
+        result = auth_service.login_user(username, password)
+        
+        if result['success']:
+            game_logger.log_server_response(request, 'login', True, {
+                'success': True,
+                'user': result['user']  # Don't log the token
+            })
+            return jsonify(result)
+        else:
+            game_logger.log_server_response(request, 'login', False, result)
+            return jsonify(result), 401
+            
+    except Exception as e:
+        game_logger.log_error(request, e, 'login')
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        game_logger.log_server_response(request, 'login', False, error_response)
+        return jsonify(error_response), 500
+
+
+@app.route('/api/auth/verify', methods=['GET'])
+@require_auth
+def verify_token():
+    """Verify JWT token and return user info."""
+    try:
+        # User data is already in request.user from the decorator
+        response_data = {
+            'success': True,
+            'user': request.user
+        }
+        
+        game_logger.log_server_response(request, 'verify_token', True, response_data)
+        return jsonify(response_data)
+        
+    except Exception as e:
+        game_logger.log_error(request, e, 'verify_token')
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        game_logger.log_server_response(request, 'verify_token', False, error_response)
+        return jsonify(error_response), 500
+
+
+@app.route('/api/auth/profile', methods=['GET'])
+@require_auth
+def get_profile():
+    """Get user profile information."""
+    try:
+        user_data = auth_service.get_user_by_id(request.user['id'])
+        if not user_data:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        response_data = {
+            'success': True,
+            'user': user_data
+        }
+        
+        game_logger.log_server_response(request, 'get_profile', True, response_data)
+        return jsonify(response_data)
+        
+    except Exception as e:
+        game_logger.log_error(request, e, 'get_profile')
+        error_response = {
+            'success': False,
+            'error': str(e)
+        }
+        game_logger.log_server_response(request, 'get_profile', False, error_response)
+        return jsonify(error_response), 500
+
+
 if __name__ == '__main__':
     print("Starting Wordle Server...")
     print("API endpoints:")
@@ -617,9 +830,14 @@ if __name__ == '__main__':
     print("  POST /api/game/<id>/guess - Submit guess")
     print("  DELETE /api/game/<id> - Delete game")
     print("  GET /api/health - Health check")
+    print("Authentication endpoints:")
+    print("  POST /api/auth/register - Register new user")
+    print("  POST /api/auth/login - Login user")
+    print("  GET /api/auth/verify - Verify JWT token")
+    print("  GET /api/auth/profile - Get user profile")
     print(f"Logging enabled - logs will be saved to: logs/")
     
     # Log server startup
-    game_logger.logger.info("🚀 Wordle Server Starting - Comprehensive logging enabled")
+    game_logger.logger.info("🚀 Wordle Server Starting - Comprehensive logging and authentication enabled")
     
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    app.run(host=HOST, port=PORT, debug=DEBUG)

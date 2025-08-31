@@ -2,39 +2,47 @@
  * Multi-Mode Word Game Application - Main Component
  *
  * This is the main React component that orchestrates the entire application.
- * It handles routing between menu and different game modes (Wordle, Absurdle),
- * game state, user interactions, and UI updates following React best practices.
+ * It handles routing between menu and different game modes (Wordle, Absurdle, Multiplayer),
+ * authentication, and dark mode state following React best practices.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import MenuPage from './components/MenuPage';
-import GameBoard from './components/GameBoard';
-import AbsurdleBoard from './components/AbsurdleBoard';
-import Keyboard from './components/Keyboard';
-import SettingsModal from './components/SettingsModal';
-import DropdownMenu from './components/DropdownMenu';
-import Alert from './components/Alert';
-import { useWordleGame } from './useWordleGame';
+import MenuPage from './pages/MenuPage';
+import LoginPage from './pages/LoginPage';
+import WordlePage from './pages/WordlePage';
+import AbsurdlePage from './pages/AbsurdlePage';
+import MultiplayerPage from './pages/MultiplayerPage';
+
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useTheme } from './hooks/useTheme';
 import './App.css';
 
-function App() {
-  // Game mode state
-  const [currentPage, setCurrentPage] = useState('menu'); // 'menu', 'wordle', 'absurdle'
+function AppContent() {
+  const { isAuthenticated, loading: authLoading, login, logout, error: authError, clearError } = useAuth();
   
-  // Game hooks
-  const wordleGame = useWordleGame('wordle');
-  const absurdleGame = useWordleGame('absurdle');
+  // Game mode state - show login if not authenticated
+  const [currentPage, setCurrentPage] = useState('menu'); // 'login', 'menu', 'wordle', 'absurdle', 'multiplayer'
   
-  // Get current game based on mode
-  const game = currentPage === 'absurdle' ? absurdleGame : wordleGame;
-  
-  // UI state
-  const [showGameOver, setShowGameOver] = useState(false);
-  const [gameOverShown, setGameOverShown] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [currentGameId, setCurrentGameId] = useState(null);
+  // UI state for alerts
   const [alert, setAlert] = useState({ message: '', type: 'info', isVisible: false });
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedDarkMode = localStorage.getItem('wordleGameDarkMode');
+    return savedDarkMode === 'true';
+  });
+
+  // Save dark mode preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('wordleGameDarkMode', isDarkMode.toString());
+  }, [isDarkMode]);
+
+  // Dark mode toggle function
+  const handleToggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
+
+  // Get theme colors
+  const theme = useTheme(isDarkMode);
 
   // Alert utility functions
   const showAlert = useCallback((message, type = 'info', autoCloseDelay = 3000) => {
@@ -45,314 +53,162 @@ function App() {
     setAlert(prev => ({ ...prev, isVisible: false }));
   }, []);
 
-  // Helper function to determine if an error is about invalid words
-  const isInvalidWordError = useCallback((errorMessage) => {
-    const lowerMessage = errorMessage.toLowerCase();
-    return lowerMessage.includes('word not in word list') || 
-           lowerMessage.includes('not in word list') ||
-           lowerMessage.includes('invalid guess');
-  }, []);
-
-  // Submit guess handler
-  const handleSubmitGuess = useCallback(async () => {
-    if (game.loading) return; // Prevent multiple submissions
-    
-    try {
-      if (!game.canSubmitGuess()) {
-        showAlert("Please enter a 5-letter word from the word list!", "warning");
-        return;
-      }
-      
-      await game.submitGuess();
-    } catch (error) {
-      // Show invalid word errors as warnings, other errors as errors
-      showAlert(error.message, isInvalidWordError(error.message) ? "warning" : "error");
-    }
-  }, [game, showAlert, isInvalidWordError]);
-
-  // Unified input handlers for both physical and virtual keyboards
-  const handleLetterInput = useCallback((letter) => {
-    if (game.gameOver || game.loading) return;
-    game.addLetter(letter);
-  }, [game]);
-
-  const handleBackspaceInput = useCallback(() => {
-    if (game.gameOver || game.loading) return;
-    game.removeLetter();
-  }, [game]);
-
-  const handleEnterInput = useCallback(() => {
-    if (game.gameOver || game.loading) return;
-    handleSubmitGuess();
-  }, [game.gameOver, game.loading, handleSubmitGuess]);
-
-  // Handle keyboard input
-  const handleKeyPress = useCallback((event) => {
-    if (game.gameOver || game.loading) return;
-
-    const key = event.key.toUpperCase();
-
-    if (/^[A-Z]$/.test(key)) {
-      handleLetterInput(key);
-    } else if (key === 'ENTER') {
-      handleEnterInput();
-    } else if (key === 'BACKSPACE') {
-      handleBackspaceInput();
-    }
-  }, [game.gameOver, game.loading, handleLetterInput, handleEnterInput, handleBackspaceInput]);
-
-  // Set up keyboard event listener
+  // Handle authentication errors
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyPress);
-    return () => {
-      document.removeEventListener('keydown', handleKeyPress);
-    };
-  }, [handleKeyPress]);
-
-  // Track game ID changes to detect new games
-  useEffect(() => {
-    if (game.gameId && game.gameId !== currentGameId) {
-      // New game detected - reset all game over flags
-      setCurrentGameId(game.gameId);
-      setShowGameOver(false);
-      setGameOverShown(false);
+    if (authError) {
+      showAlert(authError, 'error', 5000);
+      clearError();
     }
-  }, [game.gameId, currentGameId]);
-
-  // Handle game over state
-  useEffect(() => {
-    // Only show game over modal if:
-    // 1. Game is over
-    // 2. Modal is not already shown
-    // 3. Game over hasn't been shown for this game yet
-    // 4. We have a valid game ID (game is properly initialized)
-    if (game.gameOver && !showGameOver && !gameOverShown && game.gameId === currentGameId) {
-      // Small delay to let the last guess animate before showing modal
-      const GAME_OVER_DELAY_MS = 600;
-      setTimeout(() => {
-        setShowGameOver(true);
-        setGameOverShown(true);
-      }, GAME_OVER_DELAY_MS);
-    }
-  }, [game.gameOver, showGameOver, gameOverShown, game.gameId, currentGameId]);
-
-  // Handle connection status
-  useEffect(() => {
-    if (!game.connected && game.gameId) {
-      showAlert("🔴 Connecting to server...", "info", 0);
-    } else if (game.connected && alert.message.includes("Connecting to server")) {
-      hideAlert();
-    }
-  }, [game.connected, game.gameId, showAlert, hideAlert, alert.message]);
-
-  // Handle error messages
-  useEffect(() => {
-    if (game.error) {
-      // Show invalid word errors as warnings, other errors as errors
-      showAlert(game.error, isInvalidWordError(game.error) ? "warning" : "error", 5000);
-    }
-  }, [game.error, showAlert, isInvalidWordError]);
+  }, [authError, showAlert, clearError]);
 
   // Game mode selection handler
   const handleGameModeSelect = useCallback((mode) => {
+    hideAlert(); // Clear any existing alerts when navigating
     setCurrentPage(mode);
-    setShowGameOver(false);
-    setGameOverShown(false);
-    hideAlert(); // Clear any existing alerts
-    
-    // Start new game for selected mode
-    if (mode === 'wordle') {
-      wordleGame.newGame();
-    } else if (mode === 'absurdle') {
-      absurdleGame.newGame();
-    }
-  }, [wordleGame, absurdleGame, hideAlert]);
+  }, [hideAlert]);
 
   // Back to menu handler
   const handleBackToMenu = useCallback(() => {
+    hideAlert(); // Clear any existing alerts when navigating
     setCurrentPage('menu');
-    setShowGameOver(false);
-    setGameOverShown(false);
-    hideAlert(); // Clear any existing alerts
   }, [hideAlert]);
 
-  const handleNewGame = () => {
-    setShowGameOver(false);
-    setGameOverShown(false);
-    hideAlert(); // Clear any existing alerts
-    game.newGame();
-  };
-
-  const handleGameOverResponse = (playAgain) => {
-    setShowGameOver(false);
-    if (playAgain) {
-      handleNewGame();
+  // Login handler
+  const handleLogin = useCallback(async (username, password) => {
+    try {
+      await login(username, password);
+      hideAlert(); // Clear any existing alerts when successfully logging in
+      setCurrentPage('menu');
+    } catch (error) {
+      console.error('Login failed:', error);
+      // Error is handled by useAuth hook and shown via authError
     }
-  };
+  }, [login, hideAlert]);
 
-  // Render menu page
-  if (currentPage === 'menu') {
+  // Logout handler
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      setCurrentPage('login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      showAlert('Logout failed', 'error');
+    }
+  }, [logout, showAlert]);
+
+  // Clear alerts when navigating between pages
+  useEffect(() => {
+    hideAlert();
+  }, [currentPage, hideAlert]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated && currentPage !== 'login') {
+      setCurrentPage('login');
+    }
+  }, [isAuthenticated, authLoading, currentPage]);
+
+  // Loading state
+  if (authLoading) {
     return (
-      <div className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}>
-        <MenuPage onGameModeSelect={handleGameModeSelect} />
-        
-        {/* Settings Modal */}
-        <SettingsModal
-          isOpen={showSettings}
-          onClose={() => setShowSettings(false)}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={setIsDarkMode}
-        />
-        
-        {/* Note: No alerts shown on menu page */}
+      <div 
+        className={`app ${isDarkMode ? 'app--dark' : 'app--light'} app--loading`}
+        style={theme.cssProperties}
+      >
+        <div className="app__loading">
+          <h2>Loading...</h2>
+          <p>Setting up your word game experience</p>
+        </div>
       </div>
     );
   }
 
-  // Render game page
-  return (
-    <div className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}>
-      {/* Alert System */}
-      <Alert
-        message={alert.message}
-        type={alert.type}
-        isVisible={alert.isVisible}
-        onClose={hideAlert}
-        autoCloseDelay={alert.autoCloseDelay}
-      />
-      
-      <div className="app__container">
-        <header className="app__header">
-          <div className="app__header-line"></div>
-          <div className="app__controls">
-            <DropdownMenu
-              options={[
-                {
-                  id: 'back-to-menu',
-                  label: 'Back to Menu',
-                  icon: '🏠',
-                  onClick: handleBackToMenu
-                },
-                {
-                  id: 'new-game',
-                  label: 'New Game',
-                  icon: '🎮',
-                  onClick: handleNewGame
-                },
-                {
-                  id: 'settings',
-                  label: 'Settings',
-                  icon: '⚙️',
-                  onClick: () => setShowSettings(true)
-                }
-              ]}
-              disabled={game.loading}
-            />
-          </div>
-        </header>
-
-        <main className="app__main">
-          {currentPage === 'absurdle' ? (
-            <AbsurdleBoard
-              guesses={game.guesses}
-              guessResults={game.guessResults}
-              currentInput={game.currentInput}
-              maxRounds={game.maxRounds}
-              gameOver={game.gameOver}
-            />
-          ) : (
-            <GameBoard
-              guesses={game.guesses}
-              guessResults={game.guessResults}
-              currentInput={game.currentInput}
-              maxRounds={game.maxRounds}
-              gameOver={game.gameOver}
-            />
-          )}
-
-          <Keyboard
-            letterStatus={game.letterStatus}
-            onLetterClick={handleLetterInput}
-            onEnterClick={handleEnterInput}
-            onBackspaceClick={handleBackspaceInput}
-            gameOver={game.gameOver || game.loading}
-          />
-          
-          <footer className="app__footer">
-            <div className="app__footer-line"></div>
-          </footer>
-        </main>
+  // Login page
+  if (!isAuthenticated || currentPage === 'login') {
+    return (
+      <div 
+        className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}
+        style={theme.cssProperties}
+      >
+        <LoginPage 
+          onLogin={handleLogin}
+          showAlert={showAlert}
+          hideAlert={hideAlert}
+          alert={alert}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+        />
       </div>
+    );
+  }
 
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+  // Menu page
+  if (currentPage === 'menu') {
+    return (
+      <div 
+        className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}
+        style={theme.cssProperties}
+      >
+        <MenuPage 
+          onGameModeSelect={handleGameModeSelect}
+          onLogout={handleLogout}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+          showAlert={showAlert}
+          hideAlert={hideAlert}
+          alert={alert}
+        />
+      </div>
+    );
+  }
+
+  // Render game pages
+  if (currentPage === 'wordle') {
+    return (
+      <WordlePage
         isDarkMode={isDarkMode}
-        onToggleDarkMode={setIsDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onBackToMenu={handleBackToMenu}
+        showAlert={showAlert}
+        hideAlert={hideAlert}
+        alert={alert}
       />
+    );
+  }
 
-      {/* Game Over Modal */}
-      {showGameOver && (
-        <div className="game-over-modal__overlay">
-          <div className="game-over-modal">
-            <div className="game-over-modal__content">
-              <h2 className="game-over-modal__title">
-                {game.won ? "🎉 You Won!" : "😔 Game Over"}
-              </h2>
-              <div className="game-over-modal__message">
-                {currentPage === 'absurdle' ? (
-                  game.won ? (
-                    <p>
-                      Congratulations!<br />
-                      You've successfully found the final word: <strong>'{game.answer}'</strong><br />
-                      It took {game.currentRound} guesses!
-                    </p>
-                  ) : (
-                    <p>
-                      The adversarial algorithm kept you guessing for {game.currentRound} rounds!<br />
-                      The word was narrowed down but you didn't find it in time.
-                    </p>
-                  )
-                ) : (
-                  game.won ? (
-                    <p>
-                      Congratulations!<br />
-                      You guessed <strong>'{game.answer}'</strong> in {game.currentRound} attempts!
-                    </p>
-                  ) : (
-                    <p>
-                      The word was: <strong>{game.answer}</strong><br />
-                      Better luck next time!
-                    </p>
-                  )
-                )}
-              </div>
-              <div className="game-over-modal__buttons">
-                <button 
-                  className="game-over-modal__button game-over-modal__button--play-again"
-                  onClick={() => handleGameOverResponse(true)}
-                >
-                  Play Again
-                </button>
-                <button 
-                  className="game-over-modal__button game-over-modal__button--menu"
-                  onClick={handleBackToMenu}
-                >
-                  Back to Menu
-                </button>
-                <button 
-                  className="game-over-modal__button game-over-modal__button--close"
-                  onClick={() => handleGameOverResponse(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+  if (currentPage === 'absurdle') {
+    return (
+      <AbsurdlePage
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onBackToMenu={handleBackToMenu}
+        showAlert={showAlert}
+        hideAlert={hideAlert}
+        alert={alert}
+      />
+    );
+  }
+
+  if (currentPage === 'multiplayer') {
+    return (
+      <MultiplayerPage
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onBackToMenu={handleBackToMenu}
+        showAlert={showAlert}
+        hideAlert={hideAlert}
+        alert={alert}
+      />
+    );
+  }
+}
+
+// Wrapper component to provide authentication context
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

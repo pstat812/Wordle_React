@@ -8,7 +8,7 @@
 
 import React from 'react';
 import GameTile from './GameTile';
-import { LETTER_STATUS } from '../useWordleGame';
+import { LETTER_STATUS } from '../hooks/useWordleGame';
 import './GameBoard.css'; // Use the same CSS as regular GameBoard
 
 function AbsurdleBoard({

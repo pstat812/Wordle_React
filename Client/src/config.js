@@ -47,7 +47,6 @@ export const config = {
   
   // Other configurable options
   requestTimeout: process.env.REACT_APP_REQUEST_TIMEOUT || 10000, // 10 seconds
-  enableDebugLogging: isDevelopment || process.env.REACT_APP_DEBUG === 'true',
   
   // Feature flags (for future use)
   features: {
@@ -56,15 +55,5 @@ export const config = {
     animations: true,
   }
 };
-
-// Debug logging in development
-if (config.enableDebugLogging) {
-  console.log('🔧 Wordle Client Configuration:', {
-    environment: process.env.NODE_ENV,
-    apiBaseUrl: config.apiBaseUrl,
-    isDevelopment: config.isDevelopment,
-    isProduction: config.isProduction,
-  });
-}
 
 export default config;

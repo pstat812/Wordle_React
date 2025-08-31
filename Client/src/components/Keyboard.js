@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { LETTER_STATUS } from '../useWordleGame';
+import { LETTER_STATUS } from '../hooks/useWordleGame';
 import './Keyboard.css';
 
 const Keyboard = ({ 

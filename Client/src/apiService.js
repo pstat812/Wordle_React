@@ -111,3 +111,59 @@ export async function deleteGame(gameId) {
 export async function checkServerHealth() {
   return await apiRequest('/health');
 }
+
+/**
+ * Registers a new user account
+ * @param {string} username - User's chosen username
+ * @param {string} password - User's chosen password
+ * @returns {Promise<object>} Registration response
+ */
+export async function registerUser(username, password) {
+  return await apiRequest('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+/**
+ * Logs in a user and returns JWT token
+ * @param {string} username - User's username
+ * @param {string} password - User's password
+ * @returns {Promise<object>} Login response with token and user data
+ */
+export async function loginUser(username, password) {
+  return await apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+/**
+ * Verifies JWT token and returns user info
+ * @param {string} token - JWT token
+ * @returns {Promise<object>} User verification response
+ */
+export async function verifyToken(token) {
+  return await apiRequest('/auth/verify', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
+
+/**
+ * Gets user profile information
+ * @param {string} token - JWT token
+ * @returns {Promise<object>} User profile data
+ */
+export async function getUserProfile(token) {
+  return await apiRequest('/auth/profile', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
