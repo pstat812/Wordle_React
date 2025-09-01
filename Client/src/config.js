@@ -35,10 +35,38 @@ const getApiBaseUrl = () => {
   return 'http://127.0.0.1:5000/api';
 };
 
+// WebSocket Configuration
+const getWebSocketUrl = () => {
+  // Check for explicit environment variable first
+  if (process.env.REACT_APP_WEBSOCKET_URL) {
+    return process.env.REACT_APP_WEBSOCKET_URL;
+  }
+  
+  // Fallback to environment-based defaults
+  if (isDevelopment) {
+    return 'http://127.0.0.1:5000';
+  }
+  
+  if (isProduction) {
+    // In production, use same domain
+    return window.location.origin;
+  }
+  
+  if (isTest) {
+    return 'http://localhost:5000';
+  }
+  
+  // Ultimate fallback
+  return 'http://127.0.0.1:5000';
+};
+
 // Export configuration object
 export const config = {
   // API Configuration
   apiBaseUrl: getApiBaseUrl(),
+  
+  // WebSocket Configuration
+  websocketUrl: getWebSocketUrl(),
   
   // Environment flags
   isDevelopment,
@@ -47,6 +75,15 @@ export const config = {
   
   // Other configurable options
   requestTimeout: process.env.REACT_APP_REQUEST_TIMEOUT || 10000, // 10 seconds
+  
+  // WebSocket options
+  websocket: {
+    transports: ['websocket', 'polling'],
+    timeout: 5000,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+  },
   
   // Feature flags (for future use)
   features: {

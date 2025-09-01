@@ -82,7 +82,6 @@ export function useWordleGame(gameMode = 'wordle') {
       setGameId(response.game_id);
     } catch (err) {
       setError(err.message);
-      console.error('Failed to start new game:', err);
     } finally {
       setLoading(false);
     }
@@ -146,7 +145,7 @@ export function useWordleGame(gameMode = 'wordle') {
       setCurrentInput("");
     } catch (err) {
       setError(err.message);
-      console.error('Failed to update config:', err);
+      // Failed to update config
     } finally {
       setLoading(false);
     }

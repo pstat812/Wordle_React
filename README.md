@@ -6,15 +6,20 @@
 - Supports Dark Mode to enhance user experience 
 - Implemented client-server architecture with Flask backend and React frontend
 - Comprehensive logging system for game analytics and debugging
-- New Host cheating wordle(Absurdle) game mode(Updated game logic)
+- New Host cheating wordle(Absurdle) game mode with adversarial gameplay
 - User authentication system with login/registration
+- Implemented session tracking with heartbeat mechanism to detect when players close browser tabs
+- Added protection against concurrent logins from the same user account
+- Real-time multiplayer functionality using WebSocket 
+- Lobby system for multiplayer room management
+
 
 ### Development Notes
-- The current word list contains a small set of test words. A comprehensive word list will be added in a future update.
-- A multiplayer mode option is implemented in the menu for future development
+- The current word list contains a small set of test words for testing purposes. A comprehensive word list can be easily added by updating the WORD_LIST in game_settings.py
+- All console debugging statements have been removed from the client code for production readiness
+
 
 ### Planned Development
-- Multiplayer functionality for wordle game
 - Personal statistics and game history tracking dashboard
 - Enhanced user profile management
 
@@ -51,6 +56,7 @@ wordle_task/
 │   │   │   ├── AbsurdleBoard.js     # Dynamic growing game board for Absurdle mode
 │   │   │   ├── Alert.js             # Notification system component
 │   │   │   ├── GameBoard.js         # Dynamic game board with tile grid
+│   │   │   ├── GameResultModal.js   # Game completion modal with results
 │   │   │   ├── GameTile.js          # Individual letter tile component
 │   │   │   ├── Header.js            # Application header with navigation and controls
 │   │   │   ├── Keyboard.js          # Virtual on-screen keyboard 
@@ -59,14 +65,19 @@ wordle_task/
 │   │   ├── hooks/                   # Custom React hooks
 │   │   │   ├── useAuth.js           # Authentication state management hook
 │   │   │   ├── useTheme.js          # Theme and dark mode management hook
+│   │   │   ├── useWebSocket.js      # WebSocket connection and event management
 │   │   │   └── useWordleGame.js     # Game state management hook
 │   │   │
 │   │   ├── pages/                   # Page components for different app sections
 │   │   │   ├── AbsurdlePage.js      # Absurdle game mode page
 │   │   │   ├── LoginPage.js         # User authentication page
+│   │   │   ├── LobbyPage.js         # Multiplayer lobby and room management
 │   │   │   ├── MenuPage.js          # Game mode selection interface
-│   │   │   ├── MultiplayerPage.js   # Multiplayer mode page (placeholder)
+│   │   │   ├── MultiplayerPage.js   # Real-time multiplayer game page
 │   │   │   └── WordlePage.js        # Wordle game mode page
+│   │   │
+│   │   ├── services/                # Service layer for external communication
+│   │   │   └── websocketService.js  # WebSocket service for real-time communication
 │   │   │
 │   │   ├── theme/                   # Theme configuration
 │   │   │   └── colors.js            # Color scheme definitions
@@ -182,10 +193,15 @@ wordle_task/
 #### Backend Framework
 - **Flask 2.3.3**: Lightweight Python web framework for REST API
 - **Flask-CORS 4.0.0**: Cross-Origin Resource Sharing support for client-server communication
+- **Flask-SocketIO 5.3.6**: WebSocket support for real-time multiplayer functionality
+- **PyMongo 4.6.0**: MongoDB integration for user authentication and data persistence
+- **bcrypt 4.1.2**: Secure password hashing
+- **PyJWT 2.8.0**: JSON Web Token authentication
 
 #### Frontend Framework
-- **React**: Modern JavaScript library for building user interfaces
+- **React 18.2.0**: Modern JavaScript library for building user interfaces
 - **Create React App**: Standard toolchain for React development
+- **Socket.IO Client 4.7.2**: WebSocket client for real-time communication
 - **RESTful API**: Standard HTTP methods for stateless communication
 
 ## API Documentation

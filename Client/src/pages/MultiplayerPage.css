@@ -1,0 +1,347 @@
+/**
+ * Multiplayer Page Styles
+ * 
+ * Provides styling for competitive multiplayer Wordle gameplay interface
+ * with player status displays, game boards, and result modals.
+ * Uses the theme system for consistent light/dark mode support.
+ */
+
+/* Loading State */
+.game__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.game__loading h2 {
+  color: var(--color-text, #333333);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.game__loading p {
+  color: var(--color-text-secondary, #666666);
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+/* Multiplayer Status Section */
+.multiplayer-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 2rem auto;
+  padding: 1.5rem;
+  background: var(--color-card, rgba(255, 255, 255, 0.85));
+  border: 2px solid var(--color-border, #e1e5e9);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.multiplayer-status:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.status-section h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text, #333333);
+  margin: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.attempts {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent, #667eea);
+  background: var(--color-secondary, #f8fafc);
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border, #e1e5e9);
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Waiting Message */
+.waiting-message {
+  text-align: center;
+  padding: 2rem;
+  margin: 1rem 0;
+  background: var(--color-card, rgba(255, 255, 255, 0.85));
+  border: 2px solid var(--color-accent, #667eea);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.1);
+  animation: pulse 2s infinite;
+}
+
+.waiting-message h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-accent, #667eea);
+  margin: 0 0 0.5rem 0;
+}
+
+.waiting-message p {
+  font-size: 1rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0;
+  line-height: 1.5;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Dark Mode Styles */
+.app--dark .game__loading h2 {
+  color: var(--color-text, #f1f5f9);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.app--dark .game__loading p {
+  color: var(--color-text-secondary, #cbd5e1);
+}
+
+.app--dark .multiplayer-status {
+  background: var(--color-card, rgba(30, 41, 59, 0.85));
+  border-color: var(--color-border, rgba(241, 245, 249, 0.1));
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.app--dark .multiplayer-status:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.app--dark .status-section h3 {
+  color: var(--color-text, #f1f5f9);
+}
+
+.app--dark .attempts {
+  color: var(--color-accent, #60a5fa);
+  background: var(--color-secondary, #1e293b);
+  border-color: var(--color-border, rgba(241, 245, 249, 0.1));
+}
+
+.app--dark .waiting-message {
+  background: var(--color-card, rgba(30, 41, 59, 0.85));
+  border-color: var(--color-accent, #60a5fa);
+  box-shadow: 0 4px 6px rgba(96, 165, 250, 0.2);
+}
+
+.app--dark .waiting-message h3 {
+  color: var(--color-accent, #60a5fa);
+}
+
+.app--dark .waiting-message p {
+  color: var(--color-text-secondary, #cbd5e1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .multiplayer-status {
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .status-section {
+    width: 100%;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border, #e1e5e9);
+  }
+  
+  .status-section:last-child {
+    border-bottom: none;
+  }
+  
+  .status-section h3 {
+    font-size: 1.1rem;
+  }
+  
+  .waiting-message {
+    padding: 1.5rem;
+    margin: 0.5rem 0;
+  }
+  
+  .waiting-message h3 {
+    font-size: 1.2rem;
+  }
+  
+  .waiting-message p {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game__loading {
+    padding: 1rem;
+  }
+  
+  .game__loading h2 {
+    font-size: 1.6rem;
+  }
+  
+  .game__loading p {
+    font-size: 1rem;
+  }
+  
+  .multiplayer-status {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+  }
+  
+  .status-section h3 {
+    font-size: 1rem;
+  }
+  
+  .attempts {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+    min-width: 70px;
+  }
+  
+  .waiting-message {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  
+  .waiting-message h3 {
+    font-size: 1.1rem;
+  }
+  
+  .waiting-message p {
+    font-size: 0.85rem;
+  }
+}
+
+/* Additional styles for consistency with the rest of the app */
+.multiplayer-status .status-section:first-child {
+  border-right: 1px solid var(--color-border, #e1e5e9);
+  padding-right: 1rem;
+  margin-right: 1rem;
+}
+
+.app--dark .multiplayer-status .status-section:first-child {
+  border-right-color: var(--color-border, rgba(241, 245, 249, 0.1));
+}
+
+@media (max-width: 768px) {
+  .multiplayer-status .status-section:first-child {
+    border-right: none;
+    padding-right: 0;
+    margin-right: 0;
+  }
+}
+
+/* Animation for status updates */
+.multiplayer-status {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhance the attempts display with status indicators */
+.attempts--completed {
+  background: var(--color-accent, #667eea);
+  color: white;
+}
+
+.app--dark .attempts--completed {
+  background: var(--color-accent, #60a5fa);
+  color: white;
+}
+
+.attempts--in-progress {
+  background: linear-gradient(45deg, var(--color-accent, #667eea), var(--color-accent-hover, #5a6fd8));
+  color: white;
+  animation: shimmer 2s infinite;
+}
+
+.app--dark .attempts--in-progress {
+  background: linear-gradient(45deg, var(--color-accent, #60a5fa), var(--color-accent-hover, #3b82f6));
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Connection status indicator */
+.connection-status {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  animation: connectionPulse 2s infinite;
+}
+
+.connection-status span {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+@keyframes connectionPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
+}
+
+/* Dark mode connection status */
+.app--dark .connection-status {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}

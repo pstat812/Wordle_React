@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
           }
         } catch (error) {
           // Ignore errors during unload - we tried our best
-          console.log('Cleanup during unload failed:', error);
+          // Cleanup during unload failed
         }
       }
     };
@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
             navigator.sendBeacon(logoutUrl, '');
           }
         } catch (error) {
-          console.log('Cleanup during visibility change failed:', error);
+          // Cleanup during visibility change failed
         }
       }
     };
@@ -111,7 +111,7 @@ export function AuthProvider({ children }) {
           // Heartbeat successful (no console output to reduce noise)
         } catch (error) {
           heartbeatFailures++;
-          console.error(`Heartbeat failed (${heartbeatFailures}/${MAX_HEARTBEAT_FAILURES}):`, error);
+          // Heartbeat failed
           
           // Check if error indicates session expired or invalid
           const errorMessage = error.message?.toLowerCase() || '';
@@ -122,15 +122,13 @@ export function AuthProvider({ children }) {
           
           // If session is expired or we've had too many consecutive failures, logout
           if (isSessionExpired || heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
-            console.warn(isSessionExpired ? 
-              'Session expired or invalid - logging out user' : 
-              'Heartbeat failure detected - logging out user (5 second timeout)');
+            // Session expired or heartbeat failure - logging out user
             
             // Force logout due to connection issues or session expiry
             try {
               await logout();
             } catch (logoutError) {
-              console.error('Error during forced logout:', logoutError);
+              // Error during forced logout
               // Force client-side logout even if server call fails
               setToken(null);
               setUser(null);
@@ -177,7 +175,7 @@ export function AuthProvider({ children }) {
         await logoutUser(token);
       }
     } catch (error) {
-      console.error('Server logout failed:', error);
+      // Server logout failed
       // Continue with client-side logout even if server call fails
     } finally {
       // Always clear client-side state

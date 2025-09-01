@@ -1,0 +1,260 @@
+/**
+ * Game Result Modal Styles
+ * 
+ * Styles for the multiplayer game result modal with winner display,
+ * target word visualization, and action buttons.
+ */
+
+/* Overlay */
+.game-result-modal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+/* Modal Container */
+.game-result-modal {
+  background: #ffffff;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header */
+.game-result-modal__header {
+  padding: 2rem 2rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.game-result-modal__result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-result-modal__emoji {
+  font-size: 4rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.game-result-modal__title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #000000;
+}
+
+/* Result Type Colors */
+.game-result-modal__result--won .game-result-modal__title {
+  color: var(--success-color, #10b981);
+}
+
+.game-result-modal__result--lost .game-result-modal__title {
+  color: var(--error-color, #ef4444);
+}
+
+.game-result-modal__result--draw .game-result-modal__title {
+  color: var(--warning-color, #f59e0b);
+}
+
+.game-result-modal__result--abandoned .game-result-modal__title {
+  color: var(--text-secondary);
+}
+
+.game-result-modal__result--neutral .game-result-modal__title {
+  color: var(--text-primary);
+}
+
+/* Content */
+.game-result-modal__content {
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Target Word Display */
+.game-result-modal__word {
+  margin-bottom: 2rem;
+}
+
+.game-result-modal__word-label {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #666666;
+  font-weight: 500;
+}
+
+.game-result-modal__word-display {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.game-result-modal__word-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: #6aaa64;
+  color: #ffffff;
+  border: 2px solid #6aaa64;
+  border-radius: 6px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Winner Info */
+.game-result-modal__winner-info {
+  margin-bottom: 1rem;
+}
+
+.game-result-modal__winner-text {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #000000;
+  font-weight: 600;
+}
+
+/* Actions */
+.game-result-modal__actions {
+  padding: 1rem 2rem 2rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.game-result-modal__button {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.game-result-modal__button--lobby {
+  background: #3b82f6;
+  color: white;
+  border: 2px solid #3b82f6;
+}
+
+.game-result-modal__button--lobby:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.game-result-modal__button--close {
+  background: transparent;
+  color: #666666;
+  border: 2px solid #e5e5e5;
+}
+
+.game-result-modal__button--close:hover {
+  background: #f8f8f8;
+  color: #000000;
+  border-color: #666666;
+  transform: translateY(-1px);
+}
+
+.game-result-modal__button:active {
+  transform: translateY(0);
+}
+
+/* Dark Mode Adjustments */
+.app--dark .game-result-modal {
+  background: #1a1a1a;
+  border-color: #333333;
+}
+
+.app--dark .game-result-modal__word-letter {
+  background: #6aaa64;
+  color: #ffffff;
+  border-color: #6aaa64;
+}
+
+.app--dark .game-result-modal__title {
+  color: #ffffff;
+}
+
+.app--dark .game-result-modal__word-label {
+  color: #b5b5b5;
+}
+
+.app--dark .game-result-modal__winner-text {
+  color: #ffffff;
+}
+
+.app--dark .game-result-modal__button--close {
+  background: transparent;
+  color: #b5b5b5;
+  border-color: #404040;
+}
+
+.app--dark .game-result-modal__button--close:hover {
+  background: #2a2a2a;
+  color: #ffffff;
+  border-color: #666666;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .game-result-modal {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .game-result-modal__header,
+  .game-result-modal__content,
+  .game-result-modal__actions {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  
+  .game-result-modal__word-letter {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.25rem;
+  }
+  
+  .game-result-modal__actions {
+    flex-direction: column;
+  }
+  
+  .game-result-modal__button {
+    width: 100%;
+  }
+}

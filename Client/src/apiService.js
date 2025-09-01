@@ -197,3 +197,75 @@ export async function sendHeartbeat(token) {
     },
   });
 }
+
+// ============================================================================
+// MULTIPLAYER / LOBBY API FUNCTIONS
+// ============================================================================
+
+/**
+ * Gets the current lobby state with all rooms and players
+ * @param {string} token - JWT token
+ * @returns {Promise<object>} Lobby state with rooms and players
+ */
+export async function getLobbyState(token) {
+  return await apiRequest('/lobby/state', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
+
+// HTTP API functions for join/leave room removed - using WebSocket only
+
+/**
+ * Starts a multiplayer game from a room
+ * @param {string} token - JWT token
+ * @param {number} roomId - Room ID to start game from
+ * @returns {Promise<object>} Game creation response with multiplayer game details
+ */
+export async function startMultiplayerGame(token, roomId) {
+  return await apiRequest('/multiplayer/start', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ room_id: roomId }),
+  });
+}
+
+/**
+ * Gets the current state of a multiplayer game
+ * @param {string} token - JWT token
+ * @param {string} gameId - Multiplayer game ID
+ * @returns {Promise<object>} Current multiplayer game state
+ */
+export async function getMultiplayerGameState(token, gameId) {
+  return await apiRequest(`/multiplayer/${gameId}/state`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+}
+
+/**
+ * Submits a guess in a multiplayer game
+ * @param {string} token - JWT token
+ * @param {string} gameId - Multiplayer game ID
+ * @param {string} guess - 5-letter word guess
+ * @returns {Promise<object>} Updated multiplayer game state with guess result
+ */
+export async function submitMultiplayerGuess(token, gameId, guess) {
+  return await apiRequest(`/multiplayer/${gameId}/guess`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ guess }),
+  });
+}

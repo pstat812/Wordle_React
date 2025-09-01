@@ -1,0 +1,407 @@
+/**
+ * Lobby Page Styles
+ * 
+ * Provides a clean, modern interface for multiplayer room management
+ * with 3x1 rectangle room design and proper button visibility.
+ */
+
+.lobby-page {
+  min-height: 100vh;
+  width: 100vw;
+  background: var(--bg-primary, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.lobby-page--dark {
+  background: var(--bg-primary, linear-gradient(135deg, #0f172a 0%, #1e293b 100%));
+}
+
+.lobby-page__container {
+  width: 100%;
+  max-width: 1000px;
+  padding: 1rem 2rem 2rem 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.lobby-page__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Loading State */
+.lobby-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.lobby-loading h2 {
+  color: var(--text-primary, white);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.lobby-loading p {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.8));
+  font-size: 1.1rem;
+}
+
+/* Rooms Container */
+.rooms-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.rooms-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-primary, white);
+  margin: 0 0 2rem 0;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 800px;
+  align-items: center;
+}
+
+/* Room Rectangle Design */
+.room-rectangle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 600px;
+}
+
+.room-rectangle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.room-rectangle--current {
+  border-color: #667eea;
+  /* Keep same background color, don't change it */
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.room-rectangle--full {
+  opacity: 0.6;
+  background: rgba(245, 245, 245, 0.7);
+}
+
+.room-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.room-name {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.room-players-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.players-status {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.players-display {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.player-name {
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.waiting-text {
+  color: #f59e0b;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.full-text {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 0.9rem;
+  animation: pulse 1.5s infinite;
+}
+
+.room-action {
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+.current-room-actions {
+  display: flex;
+  align-items: center;
+}
+
+.starting-message {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 1rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Modern Button Design */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn--join {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.btn--join:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+.btn--leave {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.btn--leave:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+
+
+.btn--disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  color: #4b5563;
+  cursor: not-allowed;
+  border: 2px solid transparent;
+  opacity: 0.6;
+}
+
+.btn--disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn--disabled::before {
+  display: none;
+}
+
+/* Dark Mode Support */
+.lobby-page--dark .lobby-loading h2 {
+  color: #f1f5f9;
+}
+
+.lobby-page--dark .lobby-loading p {
+  color: rgba(241, 245, 249, 0.8);
+}
+
+.lobby-page--dark .rooms-title {
+  color: #f1f5f9;
+}
+
+.lobby-page--dark .room-rectangle {
+  background: rgba(30, 41, 59, 0.9);
+  border: 2px solid rgba(241, 245, 249, 0.1);
+}
+
+.lobby-page--dark .room-rectangle--current {
+  border-color: #60a5fa;
+  /* Keep same background color, don't change it */
+  box-shadow: 0 8px 25px rgba(96, 165, 250, 0.3);
+}
+
+.lobby-page--dark .room-rectangle--full {
+  background: rgba(30, 41, 59, 0.6);
+  opacity: 0.7;
+}
+
+.lobby-page--dark .room-name {
+  color: #f1f5f9;
+}
+
+.lobby-page--dark .players-status {
+  color: #94a3b8;
+}
+
+.lobby-page--dark .player-name {
+  color: #f1f5f9;
+}
+
+.lobby-page--dark .waiting-text {
+  color: #fbbf24;
+}
+
+
+
+.lobby-page--dark .btn--join {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.lobby-page--dark .btn--join:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.lobby-page--dark .btn--leave {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  color: white;
+}
+
+.lobby-page--dark .btn--leave:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+
+
+.lobby-page--dark .btn--disabled {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  color: #6b7280;
+  opacity: 0.6;
+}
+
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .lobby-page__container {
+    max-width: 800px;
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .lobby-page__container {
+    padding: 1rem;
+  }
+  
+  .rooms-title {
+    font-size: 1.6rem;
+  }
+  
+  .room-rectangle {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1.2rem;
+  }
+  
+  .room-action {
+    margin-left: 0;
+    align-self: center;
+  }
+  
+  .room-info {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .rooms-title {
+    font-size: 1.4rem;
+  }
+  
+  .room-rectangle {
+    padding: 1rem;
+  }
+  
+  .room-name {
+    font-size: 1.2rem;
+  }
+  
+  .btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    min-width: 80px;
+  }
+}
+

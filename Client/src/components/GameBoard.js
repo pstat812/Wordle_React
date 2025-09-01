@@ -22,8 +22,8 @@ const GameBoard = ({
     
     // If this row has a completed guess
     if (rowIndex < guesses.length) {
-      const guess = guesses[rowIndex];
-      const results = guessResults[rowIndex];
+      const guess = guesses[rowIndex] || "";
+      const results = guessResults[rowIndex] || [];
       
       for (let colIndex = 0; colIndex < 5; colIndex++) {
         const letter = guess[colIndex] || "";

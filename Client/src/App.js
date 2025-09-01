@@ -11,17 +11,20 @@ import MenuPage from './pages/MenuPage';
 import LoginPage from './pages/LoginPage';
 import WordlePage from './pages/WordlePage';
 import AbsurdlePage from './pages/AbsurdlePage';
+import LobbyPage from './pages/LobbyPage';
 import MultiplayerPage from './pages/MultiplayerPage';
 
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useTheme } from './hooks/useTheme';
+import websocketService from './services/websocketService';
 import './App.css';
 
 function AppContent() {
-  const { isAuthenticated, loading: authLoading, login, logout, error: authError, clearError } = useAuth();
+  const { isAuthenticated, loading: authLoading, login, logout, error: authError, clearError, user } = useAuth();
   
   // Game mode state - show login if not authenticated
-  const [currentPage, setCurrentPage] = useState('menu'); // 'login', 'menu', 'wordle', 'absurdle', 'multiplayer'
+  const [currentPage, setCurrentPage] = useState('menu'); // 'login', 'menu', 'wordle', 'absurdle', 'lobby', 'multiplayer'
+  const [multiplayerGameId, setMultiplayerGameId] = useState(null);
   
   // UI state for alerts
   const [alert, setAlert] = useState({ message: '', type: 'info', isVisible: false });
@@ -64,13 +67,40 @@ function AppContent() {
   // Game mode selection handler
   const handleGameModeSelect = useCallback((mode) => {
     hideAlert(); // Clear any existing alerts when navigating
-    setCurrentPage(mode);
+    // Route multiplayer to lobby first
+    if (mode === 'multiplayer') {
+      setCurrentPage('lobby');
+    } else {
+      setCurrentPage(mode);
+    }
+  }, [hideAlert]);
+
+  // Handler for starting multiplayer game from lobby
+  const handleStartMultiplayer = useCallback((gameId, players) => {
+    hideAlert();
+    setMultiplayerGameId(gameId);
+    setCurrentPage('multiplayer');
   }, [hideAlert]);
 
   // Back to menu handler
   const handleBackToMenu = useCallback(() => {
     hideAlert(); // Clear any existing alerts when navigating
+    
+    // Disconnect WebSocket to trigger server-side cleanup
+    // This will remove the user from any rooms they're in
+    if (websocketService.isConnectedToServer()) {
+      websocketService.disconnect();
+    }
+    
     setCurrentPage('menu');
+    setMultiplayerGameId(null); // Clear multiplayer game ID
+  }, [hideAlert]);
+
+  // Back to lobby handler
+  const handleBackToLobby = useCallback(() => {
+    hideAlert(); // Clear any existing alerts when navigating
+    setCurrentPage('lobby');
+    setMultiplayerGameId(null); // Clear multiplayer game ID
   }, [hideAlert]);
 
   // Login handler
@@ -80,7 +110,6 @@ function AppContent() {
       hideAlert(); // Clear any existing alerts when successfully logging in
       setCurrentPage('menu');
     } catch (error) {
-      console.error('Login failed:', error);
       // Error is handled by useAuth hook and shown via authError
     }
   }, [login, hideAlert]);
@@ -91,7 +120,6 @@ function AppContent() {
       await logout();
       setCurrentPage('login');
     } catch (error) {
-      console.error('Logout failed:', error);
       showAlert('Logout failed', 'error');
     }
   }, [logout, showAlert]);
@@ -189,12 +217,28 @@ function AppContent() {
     );
   }
 
+  if (currentPage === 'lobby') {
+    return (
+      <LobbyPage
+        onBackToMenu={handleBackToMenu}
+        onStartMultiplayer={handleStartMultiplayer}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        showAlert={showAlert}
+        hideAlert={hideAlert}
+        alert={alert}
+      />
+    );
+  }
+
   if (currentPage === 'multiplayer') {
     return (
       <MultiplayerPage
+        gameId={multiplayerGameId}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
         onBackToMenu={handleBackToMenu}
+        onBackToLobby={handleBackToLobby}
         showAlert={showAlert}
         hideAlert={hideAlert}
         alert={alert}

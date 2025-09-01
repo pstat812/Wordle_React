@@ -46,7 +46,6 @@ function WordlePage({
     try {
       await game.submitGuess(guess);
     } catch (error) {
-      console.error('Error submitting guess:', error);
       showAlert(error.message || 'Failed to submit guess', 'error');
     }
   }, [game, showAlert]);
@@ -87,7 +86,6 @@ function WordlePage({
       // Start new game
       await game.newGame();
     } catch (error) {
-      console.error('Error starting new game:', error);
       showAlert(error.message || 'Failed to start new game', 'error');
     }
   }, [game, showAlert]);

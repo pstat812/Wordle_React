@@ -10,7 +10,7 @@ All game parameters are centralized here to enable easy modification
 from typing import List, Final
 
 # Core Game Configuration Constants
-MAX_ROUNDS: Final[int] = 4
+MAX_ROUNDS: Final[int] = 6
 """
 Maximum number of guess attempts allowed per game.
 Type: Final[int] - Immutable to prevent accidental modification

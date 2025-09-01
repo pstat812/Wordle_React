@@ -74,14 +74,15 @@
 
 .header__dark-mode-button,
 .header__back-button {
-  padding: 0.5rem;
-  font-size: 1rem;
+  padding: 0;
+  font-size: 1.2rem;
   width: 2.5rem;
   height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
+  line-height: 1;
 }
 
 .header__new-game-button {
@@ -166,9 +167,10 @@
   
   .header__dark-mode-button,
   .header__back-button {
-    padding: 0.4rem;
+    padding: 0;
     width: 2.2rem;
     height: 2.2rem;
+    font-size: 1.1rem;
   }
   
   .header__new-game-button {
