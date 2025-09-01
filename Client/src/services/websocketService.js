@@ -51,7 +51,6 @@ class WebSocketService {
 
         // Connection successful
         this.socket.on('connect', () => {
-          console.log('🔌 WebSocket connected successfully');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           resolve(true);
@@ -165,7 +164,6 @@ class WebSocketService {
    */
   leaveMultiplayerGame(gameId, token) {
     if (!this.isConnectedToServer()) {
-      console.debug('🔌 Skipping leave game: WebSocket not connected (normal during navigation)');
       return;
     }
 
@@ -182,11 +180,9 @@ class WebSocketService {
    */
   joinLobby(token) {
     if (!this.isConnectedToServer()) {
-      console.log('🔌 Cannot join lobby: WebSocket not connected');
       return;
     }
 
-    console.log('🏠 Joining lobby via WebSocket');
     this.socket.emit('join_lobby', {
       token: token
     });
@@ -198,7 +194,6 @@ class WebSocketService {
    */
   leaveLobby(token) {
     if (!this.isConnectedToServer()) {
-      console.debug('🔌 Skipping leave lobby: WebSocket not connected (normal during navigation)');
       return;
     }
 
@@ -213,11 +208,9 @@ class WebSocketService {
    */
   joinRoom(roomId, token) {
     if (!this.isConnectedToServer()) {
-      console.log('🔌 Cannot join room: WebSocket not connected');
       return;
     }
 
-    console.log(`🏠 Joining room ${roomId} via WebSocket`);
     this.socket.emit('join_room', {
       room_id: roomId,
       token: token
@@ -240,12 +233,28 @@ class WebSocketService {
    */
   submitGuess(gameId, guess, token) {
     if (!this.isConnectedToServer()) return;
-    
+
     this.socket.emit('submit_guess', {
       game_id: gameId,
       guess: guess,
       token: token
     });
+  }
+
+  /**
+   * Listen for spell cast events
+   */
+  onSpellCast(callback) {
+    if (!this.socket) return;
+    this.socket.on('spell_cast', callback);
+  }
+
+  /**
+   * Remove spell cast event listener
+   */
+  offSpellCast(callback) {
+    if (!this.socket) return;
+    this.socket.off('spell_cast', callback);
   }
 
 

@@ -139,71 +139,141 @@ class WordleServer:
     def is_valid_guess(self, game_id: str, guess: str) -> Tuple[bool, str]:
         """
         Validates a guess for a specific game session.
-        
+
         Args:
             game_id: Unique game identifier
             guess: The word to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message)
         """
         if game_id not in self.games:
             return False, "Game not found"
-        
+
         game = self.games[game_id]
-        
+
         if game["game_over"]:
             return False, "Game is already over"
-        
+
         if not guess or not isinstance(guess, str):
             return False, "Guess must be a valid string"
-        
+
         normalized_guess = guess.strip().upper()
-        
+
+        # Check if this is a spell cast
+        spells = ["FLASH", "WRONG", "BLOCK"]
+        if normalized_guess in spells:
+            # Validate spell usage for multiplayer games
+            if game["game_mode"] == "multiplayer":
+                # Get the player making the guess
+                # For now, we'll allow spells - validation happens client-side
+                # This allows spells to bypass the word list requirement
+                return True, ""
+            else:
+                return False, "Spells are only available in multiplayer mode"
+
+        # Normal word validation
         if len(normalized_guess) != 5:
             return False, "Guess must be exactly 5 letters"
-        
+
         if not normalized_guess.isalpha():
             return False, "Guess must contain only letters"
-        
+
         if normalized_guess not in self.word_list:
             return False, "Word not in word list"
-        
+
         return True, ""
-    
+
+    def _handle_spell_cast(self, game_id: str, spell: str) -> Optional[GameState]:
+        """
+        Handles spell casting for multiplayer games.
+        Spells don't count as regular guesses but trigger effects on opponents.
+
+        Args:
+            game_id: Unique game identifier
+            spell: The spell being cast (FLASH, WRONG, BLOCK)
+
+        Returns:
+            Updated GameState or None if invalid
+        """
+        game = self.games[game_id]
+
+        # Create a special "spell" entry that doesn't count as a guess
+        # This will be handled differently by the client
+        spell_result = {
+            "spell": spell,
+            "type": "spell_cast",
+            "timestamp": time.time()
+        }
+
+        # For now, just return the current game state
+        # The actual spell effects will be handled via WebSocket events
+        return self.get_game_state(game_id)
+
+    def _handle_multiplayer_spell_cast(self, game_id: str, user_id: str, spell: str) -> Optional[Dict]:
+        """
+        Handles spell casting for multiplayer games.
+        Returns spell information that will be broadcast via WebSocket.
+
+        Args:
+            game_id: Unique game identifier
+            user_id: ID of the player casting the spell
+            spell: The spell being cast (FLASH, WRONG, BLOCK)
+
+        Returns:
+            Dictionary with spell cast information
+        """
+        game_data = self.games[game_id]
+
+        # Return spell cast information
+        return {
+            "spell_cast": True,
+            "spell": spell,
+            "caster_id": user_id,
+            "player_state": game_data["player_states"][user_id],
+            "game_status": game_data["game_status"],
+            "game_over": game_data["game_over"]
+        }
+
     def make_guess(self, game_id: str, guess: str) -> Optional[GameState]:
         """
         Processes a guess and updates game state.
-        
+
         Args:
             game_id: Unique game identifier
             guess: The 5-letter word guess
-            
+
         Returns:
             Updated GameState or None if invalid
         """
         is_valid, error = self.is_valid_guess(game_id, guess)
         if not is_valid:
             return None
-        
+
         game = self.games[game_id]
         normalized_guess = guess.strip().upper()
-        
+
+        # Check if this is a spell cast
+        spells = ["FLASH", "WRONG", "BLOCK"]
+        if normalized_guess in spells:
+            # Handle spell casting - don't count as a regular guess
+            return self._handle_spell_cast(game_id, normalized_guess)
+
         # Handle different game modes
         if game["game_mode"] == "wordle":
             target_word = game["target_word"]
             evaluations = self._evaluate_guess_against_target(normalized_guess, target_word)
         else:  # absurdle
             evaluations = self._process_absurdle_guess(game, normalized_guess)
-        
+
         # Update game state
         game["current_round"] += 1
         game["guesses"].append(normalized_guess)
         game["guess_results"].append([(letter, status.value) for letter, status in evaluations])
-        
+
         # Update letter status
         self._update_letter_status(game["letter_status"], evaluations)
-        
+
         # Check win condition based on game mode
         if game["game_mode"] == "wordle":
             target_word = game["target_word"]
@@ -215,7 +285,7 @@ class WordleServer:
         else:  # absurdle
             # For Absurdle, always extend max_rounds to accommodate the next guess
             game["max_rounds"] = game["current_round"] + 1
-            
+
             # Check if only one candidate remains and it matches the guess
             if len(game["candidate_words"]) == 1 and normalized_guess == game["candidate_words"][0]:
                 game["won"] = True
@@ -223,7 +293,7 @@ class WordleServer:
             elif len(game["candidate_words"]) == 0:
                 # Shouldn't happen in well-implemented Absurdle
                 game["game_over"] = True
-        
+
         return self.get_game_state(game_id)
     
     def _evaluate_guess_against_target(self, guess: str, target: str) -> List[Tuple[str, LetterStatus]]:
@@ -462,7 +532,7 @@ class WordleServer:
                     if lobby_manager:
                         lobby_manager.cleanup_after_disconnect(user_id)
                     
-                    print(f"🏳️ Game {game_id}: {username} forfeited due to disconnect")
+                    print(f"Game {game_id}: {username} forfeited due to disconnect")
         
         return {"games_affected": games_affected}
 
@@ -494,48 +564,54 @@ class WordleServer:
         """Process a guess in multiplayer mode."""
         if game_id not in self.games:
             return None
-        
+
         game_data = self.games[game_id]
         if game_data["game_mode"] != "multiplayer":
             return None
-        
+
         if user_id not in game_data["player_states"]:
             return None
-        
+
         player_state = game_data["player_states"][user_id]
-        
+
         # Check if player already finished
         if player_state["finished"]:
             return None
-        
+
         # Check if game is over
         if game_data["game_status"] != "active":
             return None
-        
+
         # Validate guess using the same method as regular Wordle
         is_valid, error_message = self.is_valid_guess(game_id, guess)
         if not is_valid:
             return {"error": error_message}
-        
+
+        # Check if this is a spell cast
+        spells = ["FLASH", "WRONG", "BLOCK"]
+        if guess in spells:
+            # Handle spell casting - don't count as a regular guess
+            return self._handle_multiplayer_spell_cast(game_id, user_id, guess)
+
         # Process guess
         target_word = game_data["target_word"]
         result = self._evaluate_guess_against_target(guess, target_word)
-        
+
         # Update player state
         player_state["current_round"] += 1
         player_state["guesses"].append(guess)
         player_state["guess_results"].append([(letter, status.value) for letter, status in result])
-        
+
         # Update letter status for this player
         for letter, status in result:
             current_status = LetterStatus(player_state["letter_status"][letter])
             new_status = status  # status is already a LetterStatus enum
-            
+
             if current_status == LetterStatus.UNUSED or \
                (current_status == LetterStatus.MISS and new_status in [LetterStatus.PRESENT, LetterStatus.HIT]) or \
                (current_status == LetterStatus.PRESENT and new_status == LetterStatus.HIT):
                 player_state["letter_status"][letter] = status.value
-        
+
         # Check if player won
         if guess == target_word:
             player_state["won"] = True
@@ -545,29 +621,29 @@ class WordleServer:
             game_data["game_status"] = "finished"
             game_data["game_over"] = True
             game_data["won"] = True
-            
+
             # DON'T clean up here - let the WebSocket handler do it after broadcasting
-        
+
         # Check if player used all attempts
         elif player_state["current_round"] >= game_data["max_rounds"]:
             player_state["game_over"] = True
             player_state["finished"] = True
-            
+
             # Check if both players finished
             all_finished = all(
-                game_data["player_states"][pid]["finished"] 
+                game_data["player_states"][pid]["finished"]
                 for pid in game_data["player_states"]
             )
-            
+
             if all_finished and game_data["winner"] is None:
                 game_data["game_status"] = "draw"
                 game_data["game_over"] = True
-                
+
                 # DON'T clean up here - let the WebSocket handler do it after broadcasting
-        
+
         # Note: WebSocket broadcasting is now handled in the WebSocket handler
         # to ensure proper order: broadcast first, then cleanup
-        
+
         return {
             "player_state": player_state,
             "game_status": game_data["game_status"],
@@ -629,7 +705,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Initialize SocketIO with CORS support
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=False, engineio_logger=False)
 
 server = WordleServer()
 
@@ -643,9 +719,9 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 # Initialize authentication service
 try:
     auth_service = AuthService(MONGO_URI, JWT_SECRET)
-    print("✅ Authentication service initialized successfully")
+    print("Authentication service initialized successfully")
 except Exception as e:
-    print(f"❌ Failed to initialize authentication service: {e}")
+    print(f"Failed to initialize authentication service: {e}")
     auth_service = None
 
 
@@ -654,7 +730,7 @@ def heartbeat_cleanup_worker():
     Background worker that periodically cleans up expired sessions based on missed heartbeats.
     Runs every 15 seconds to check for users who haven't sent heartbeats.
     """
-    print("🔄 Heartbeat cleanup worker started")
+    print("Heartbeat cleanup worker started")
     while True:
         try:
             if auth_service:
@@ -663,10 +739,10 @@ def heartbeat_cleanup_worker():
                 
                 # Debug logging
                 if cleanup_result["cleaned_count"] > 0:
-                    print(f"🧹 Heartbeat cleanup found {cleanup_result['cleaned_count']} expired sessions")
+                    print(f"Heartbeat cleanup found {cleanup_result['cleaned_count']} expired sessions")
                 
                 if cleanup_result["cleaned_count"] > 0:
-                    game_logger.logger.info(f"🧹 Heartbeat cleanup: Removed {cleanup_result['cleaned_count']} expired sessions")
+                    game_logger.logger.info(f"Heartbeat cleanup: Removed {cleanup_result['cleaned_count']} expired sessions")
                     
                     # Log individual logout events for each disconnected user
                     for user_info in cleanup_result["disconnected_users"]:
@@ -676,32 +752,32 @@ def heartbeat_cleanup_worker():
                         session_duration = user_info["session_duration"]
                         
                         # Simple console output for monitoring
-                        print(f"🔌 {username} - Auto logout (missed heartbeat)")
+                        print(f"{username} - Auto logout (missed heartbeat)")
                         
                         # Auto-leave lobby room if user was in one
                         if user_id and lobby_manager:
                             try:
                                 lobby_manager.cleanup_after_disconnect(user_id)
-                                print(f"🚪 {username} - Auto removed from lobby room")
+                                print(f"{username} - Auto removed from lobby room")
                             except Exception as lobby_error:
-                                print(f"❌ Lobby removal error for {username}: {lobby_error}")
+                                print(f"Lobby removal error for {username}: {lobby_error}")
                         
                         # Auto-forfeit multiplayer games if user was in one
                         if user_id and server:
                             try:
-                                print(f"🔍 Checking if user {username} ({user_id}) is in an active multiplayer game...")
+                                print(f"Checking if user {username} ({user_id}) is in an active multiplayer game...")
                                 forfeit_result = server.handle_player_disconnect(user_id, username)
                                 if forfeit_result['games_affected'] > 0:
-                                    game_logger.logger.info(f"🏳️ User '{username}' forfeited {forfeit_result['games_affected']} multiplayer game(s) due to disconnect")
-                                    print(f"🏳️ {username} - Auto forfeited {forfeit_result['games_affected']} multiplayer game(s)")
+                                    game_logger.logger.info(f"User '{username}' forfeited {forfeit_result['games_affected']} multiplayer game(s) due to disconnect")
+                                    print(f"{username} - Auto forfeited {forfeit_result['games_affected']} multiplayer game(s)")
                                 else:
-                                    print(f"ℹ️ User {username} was not in any active multiplayer games")
+                                    print(f"User {username} was not in any active multiplayer games")
                             except Exception as game_error:
-                                game_logger.logger.error(f"❌ Failed to handle multiplayer game disconnect for {username}: {game_error}")
-                                print(f"❌ Multiplayer game disconnect error for {username}: {game_error}")
+                                game_logger.logger.error(f"Failed to handle multiplayer game disconnect for {username}: {game_error}")
+                                print(f"Multiplayer game disconnect error for {username}: {game_error}")
                         
                         # Detailed log to file
-                        game_logger.logger.info(f"🔌 User '{username}' automatically logged out due to missed heartbeat. Last heartbeat: {last_heartbeat}, Session duration: {session_duration:.1f}s")
+                        game_logger.logger.info(f"User '{username}' automatically logged out due to missed heartbeat. Last heartbeat: {last_heartbeat}, Session duration: {session_duration:.1f}s")
                         
                         # Create a mock request object for logging USER_ACTION (same as manual logout)
                         class MockRequest:
@@ -751,7 +827,7 @@ def heartbeat_cleanup_worker():
                         )
                 
         except Exception as e:
-            game_logger.logger.error(f"❌ Error in heartbeat cleanup worker: {e}")
+            game_logger.logger.error(f"Error in heartbeat cleanup worker: {e}")
         
         # Wait 15 seconds before next cleanup (reduced for faster testing)
         time.sleep(15)
@@ -1225,7 +1301,7 @@ def heartbeat():
         
         # Log heartbeat received (debug level only)
         username = request.user.get('username', 'unknown') if hasattr(request, 'user') else 'unknown'
-        game_logger.logger.debug(f"💗 Heartbeat: {username}")
+        game_logger.logger.debug(f"Heartbeat: {username}")
         
         # Update session heartbeat
         result = auth_service.update_session_activity(token)
@@ -1233,11 +1309,11 @@ def heartbeat():
         if result['success']:
             return jsonify({'success': True, 'message': 'Heartbeat updated'})
         else:
-            game_logger.logger.warning(f"❌ Heartbeat update failed for {username}: {result.get('error')}")
+            game_logger.logger.warning(f"Heartbeat update failed for {username}: {result.get('error')}")
             return jsonify(result), 400
             
     except Exception as e:
-        game_logger.logger.error(f"❌ Heartbeat endpoint error: {e}")
+        game_logger.logger.error(f"Heartbeat endpoint error: {e}")
         error_response = {
             'success': False,
             'error': str(e)
@@ -1333,23 +1409,22 @@ class SimpleLobbyManager:
         
         # Auto-start game if room is now full
         if len(room['players']) == 2:
-            print(f"🎮 Room {room_id} ({room['name']}) is now full with players: {[p['username'] for p in room['players']]}")
 
             # Check if server is available
             if 'server' not in globals():
-                print("❌ Server object not available!")
+                print("Server object not available!")
                 return {
                     'success': False,
                     'error': 'Server not available'
                 }
 
             game_id = server.create_new_game('multiplayer')
-            print(f"🎮 Created multiplayer game: {game_id}")
+            print(f"Created multiplayer game: {game_id}")
 
             # Add both players to the game
             for p in room['players']:
                 result = server.add_player_to_multiplayer_game(game_id, p['id'], p['username'])
-                print(f"🎮 Added player {p['username']} to game {game_id}: {result}")
+                print(f"Added player {p['username']} to game {game_id}: {result}")
             
             return {
                 'success': True,
@@ -1497,7 +1572,7 @@ def make_multiplayer_guess(game_id):
 
 
 # ============================================================================
-# SIMPLIFIED WEBSOCKET EVENT HANDLERS
+# WEBSOCKET EVENT HANDLERS
 # ============================================================================
 
 # Simple tracking of connected users
@@ -1526,8 +1601,7 @@ def websocket_auth_required(f):
 @socketio.on('connect')
 def handle_connect():
     """Handle WebSocket connection."""
-    print(f"🔌 WebSocket client connected: {request.sid}")
-    game_logger.logger.info(f"🔌 WebSocket client connected: {request.sid}")
+    pass
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -1573,8 +1647,7 @@ def handle_join_multiplayer_game(data, user=None):
         join_room(f"game_{game_id}")
         connected_users[user_id] = request.sid
         
-        print(f"🎮 {username} joined multiplayer game room: {game_id}")
-        game_logger.logger.info(f"🎮 WebSocket: {username} joined multiplayer game {game_id}")
+        game_logger.logger.info(f"WebSocket: {username} joined multiplayer game {game_id}")
         
         # Send initial game state
         emit('game_state_update', {
@@ -1589,7 +1662,7 @@ def handle_join_multiplayer_game(data, user=None):
         }, room=f"game_{game_id}", include_self=False)
         
     except Exception as e:
-        print(f"❌ Error joining multiplayer game: {e}")
+        print(f"Error joining multiplayer game: {e}")
         emit('error', {'error': str(e)})
 
 @socketio.on('leave_multiplayer_game')
@@ -1611,8 +1684,7 @@ def handle_leave_multiplayer_game(data, user=None):
         if user_id in connected_users:
             del connected_users[user_id]
         
-        print(f"🚪 {username} left multiplayer game room: {game_id}")
-        game_logger.logger.info(f"🚪 WebSocket: {username} left multiplayer game {game_id}")
+        game_logger.logger.info(f"WebSocket: {username} left multiplayer game {game_id}")
         
         # Notify other players in the room
         emit('player_left', {
@@ -1621,7 +1693,7 @@ def handle_leave_multiplayer_game(data, user=None):
         }, room=f"game_{game_id}", include_self=False)
         
     except Exception as e:
-        print(f"❌ Error leaving multiplayer game: {e}")
+        print(f"Error leaving multiplayer game: {e}")
         emit('error', {'error': str(e)})
 
 @socketio.on('join_lobby')
@@ -1675,8 +1747,6 @@ def handle_join_room(data, user=None):
 
     # If room is full, start game immediately
     if result.get('room_full'):
-        print(f"🎮 Room {room_id} is full! Starting game {result['game_id']} with players: {[p['username'] for p in result['players']]}")
-        print(f"🎮 Connected users: {list(connected_users.keys())}")
 
         # Notify both players that game is starting
         game_started_data = {
@@ -1689,17 +1759,12 @@ def handle_join_room(data, user=None):
         for player in result['players']:
             if player['id'] in connected_users:
                 socket_id = connected_users[player['id']]
-                print(f"🎮 Sending game_started event to player {player['username']} ({player['id']}) via socket {socket_id}")
                 try:
                     socketio.emit('game_started', game_started_data, room=socket_id)
-                    print(f"✅ game_started event sent successfully to {player['username']}")
                 except Exception as emit_error:
-                    print(f"❌ Failed to emit game_started to {player['username']}: {emit_error}")
-            else:
-                print(f"⚠️ Player {player['username']} ({player['id']}) not found in connected_users")
+                    print(f"Failed to emit game_started to {player['username']}: {emit_error}")
 
         # Also broadcast to lobby room for any clients that might be listening
-        print("📡 Broadcasting game_started to lobby room as backup")
         socketio.emit('game_started', game_started_data, room="lobby")
 
         # Broadcast updated lobby state after game starts
@@ -1731,20 +1796,48 @@ def handle_submit_guess(data, user=None):
     """Submit a guess via WebSocket."""
     game_id = data.get('game_id')
     guess = data.get('guess')
-    
+
     if not game_id or not guess:
         emit('error', {'error': 'Game ID and guess required'})
         return
-    
+
     # Process the guess
     result = server.make_multiplayer_guess(game_id, user['id'], guess)
-    
+
     if result and 'error' not in result:
-        # Send result to the player
-        emit('guess_result', {'success': True, 'result': result})
-        
-        # Broadcast game state to all players
+        # Check if this was a spell cast
+        if result.get('spell_cast'):
+            # Handle spell casting
+            spell = result['spell']
+            caster_id = result['caster_id']
+
+            # Broadcast spell effect to all players in the game
+            spell_data = {
+                'spell': spell,
+                'caster_id': caster_id,
+                'target_ids': []  # Will be populated with opponent IDs
+            }
+
+            # Find opponents and send spell effects
+            game_data = server.games.get(game_id)
+            if game_data:
+                for player in game_data.get("players", []):
+                    if player["id"] != caster_id:
+                        spell_data['target_ids'].append(player["id"])
+
+            # Broadcast spell to all players in the game room
+            socketio.emit('spell_cast', spell_data, room=f"game_{game_id}")
+
+            # Also send result to the caster
+            emit('guess_result', {'success': True, 'result': result, 'spell_cast': True})
+
+        else:
+            # Regular guess - send result to the player
+            emit('guess_result', {'success': True, 'result': result})
+
+        # Broadcast game state to all players (for both regular guesses and spells)
         broadcast_game_state_update(game_id)
+
     else:
         # Send error to the player
         error_msg = result.get('error') if result else 'Invalid guess'
@@ -1769,11 +1862,9 @@ def broadcast_game_state_update(game_id):
                     'state': game_state
                 }, room=player_socket_id)
         
-        print(f"📡 Broadcasted game state update for game {game_id}")
-        
     except Exception as e:
-        print(f"❌ Error broadcasting game state: {e}")
-        game_logger.logger.error(f"❌ Error broadcasting game state for {game_id}: {e}")
+        print(f"Error broadcasting game state: {e}")
+        game_logger.logger.error(f"Error broadcasting game state for {game_id}: {e}")
 
 
 
@@ -1785,9 +1876,9 @@ if __name__ == '__main__':
     if auth_service:
         cleanup_thread = threading.Thread(target=heartbeat_cleanup_worker, daemon=True)
         cleanup_thread.start()
-        print("💗 Heartbeat cleanup worker started - checking every 15 seconds")
+        print("Heartbeat cleanup worker started - checking every 15 seconds")
     
     # Log server startup
-    game_logger.logger.info("🚀 Wordle Server Starting - Comprehensive logging, authentication, and heartbeat monitoring enabled")
+    game_logger.logger.info("Wordle Server Starting - Comprehensive logging, authentication, and heartbeat monitoring enabled")
     
     socketio.run(app, host=HOST, port=PORT, debug=DEBUG)

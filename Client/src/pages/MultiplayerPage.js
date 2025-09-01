@@ -11,6 +11,7 @@ import Alert from '../components/Alert';
 import GameBoard from '../components/GameBoard';
 import Keyboard from '../components/Keyboard';
 import GameResultModal from '../components/GameResultModal';
+
 import { getMultiplayerGameState, submitMultiplayerGuess } from '../apiService';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
@@ -57,6 +58,28 @@ function MultiplayerPage({
   const [showResultModal, setShowResultModal] = useState(false);
   const [useWebSocket, setUseWebSocket] = useState(false);
 
+  // Spell state
+  const [spells, setSpells] = useState({
+    FLASH: { used: false },
+    WRONG: { used: false },
+    BLOCK: { used: false }
+  });
+
+  // Opponent spell state
+  const [opponentSpells, setOpponentSpells] = useState({
+    FLASH: { used: false },
+    WRONG: { used: false },
+    BLOCK: { used: false }
+  });
+
+  // Spell effect states
+  const [spellEffects, setSpellEffects] = useState({
+    flashActive: false,
+    wrongActive: false,
+    blockActive: false,
+    wrongLettersRemaining: 0
+  });
+
   // Fetch game state (fallback for non-WebSocket or initial load)
   const fetchGameState = useCallback(async () => {
     if (!gameId || !token) return;
@@ -100,14 +123,27 @@ function MultiplayerPage({
       return;
     }
     
-    if (currentGuess.length !== 5) {
-      showAlert('Word must be exactly 5 letters', 'warning');
-      return;
-    }
-    
-    if (!/^[A-Z]+$/.test(currentGuess)) {
-      showAlert('Word must contain only letters', 'warning');
-      return;
+    // Check if this is a spell cast
+    const isSpell = ['FLASH', 'WRONG', 'BLOCK'].includes(currentGuess);
+
+    if (!isSpell) {
+      // Normal word validation
+      if (currentGuess.length !== 5) {
+        showAlert('Word must be exactly 5 letters', 'warning');
+        return;
+      }
+
+      if (!/^[A-Z]+$/.test(currentGuess)) {
+        showAlert('Word must contain only letters', 'warning');
+        return;
+      }
+    } else {
+      // Spell validation
+      if (spells[currentGuess]?.used) {
+        showAlert(`You have already used ${currentGuess} this game`, 'warning');
+        setCurrentGuess('');
+        return;
+      }
     }
     
     if (gameState?.player?.finished) {
@@ -169,25 +205,58 @@ function MultiplayerPage({
         setIsSubmitting(false);
       }
     }
-  }, [currentGuess, gameId, token, currentGameState, isSubmitting, showAlert, fetchGameState, user.id, isInvalidWordError, wsConnected]);
+  }, [currentGuess, gameId, token, currentGameState, isSubmitting, showAlert, fetchGameState, user.id, isInvalidWordError, wsConnected, spells]);
+
+
 
   // Input handlers (separate functions like normal Wordle)
   const handleLetterInput = useCallback((letter) => {
     if (currentGameState?.player?.finished || currentGameState?.game_over) return;
+
+    // Check if BLOCK spell is active
+    if (spellEffects.blockActive) {
+      return; // Block all input
+    }
+
+    // Handle WRONG spell effect
+    if (spellEffects.wrongActive && spellEffects.wrongLettersRemaining > 0) {
+      // Replace input with random letter
+      const randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+      setCurrentGuess(prev => prev + randomLetter);
+      setSpellEffects(prev => ({
+        ...prev,
+        wrongLettersRemaining: prev.wrongLettersRemaining - 1,
+        wrongActive: prev.wrongLettersRemaining - 1 > 0
+      }));
+      return;
+    }
+
     if (currentGuess.length < 5) {
       setCurrentGuess(prev => prev + letter);
     }
-  }, [currentGuess, currentGameState]);
+  }, [currentGuess, currentGameState, spellEffects]);
 
   const handleBackspaceInput = useCallback(() => {
     if (currentGameState?.player?.finished || currentGameState?.game_over) return;
+
+    // Check if BLOCK spell is active
+    if (spellEffects.blockActive) {
+      return; // Block all input
+    }
+
     setCurrentGuess(prev => prev.slice(0, -1));
-  }, [currentGameState]);
+  }, [currentGameState, spellEffects]);
 
   const handleEnterInput = useCallback(() => {
     if (currentGameState?.player?.finished || currentGameState?.game_over) return;
+
+    // Check if BLOCK spell is active
+    if (spellEffects.blockActive) {
+      return; // Block all input
+    }
+
     handleSubmitGuess();
-  }, [currentGameState, handleSubmitGuess]);
+  }, [currentGameState, handleSubmitGuess, spellEffects]);
 
 
 
@@ -195,7 +264,13 @@ function MultiplayerPage({
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (currentGameState?.player?.finished || currentGameState?.game_over) return;
-      
+
+      // Check if BLOCK spell is active - block all keyboard input
+      if (spellEffects.blockActive) {
+        event.preventDefault();
+        return;
+      }
+
       // Check if event.key exists and is a string to prevent autofill errors
       if (!event.key || typeof event.key !== 'string') return;
 
@@ -214,7 +289,7 @@ function MultiplayerPage({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentGameState, handleLetterInput, handleEnterInput, handleBackspaceInput]);
+  }, [currentGameState, handleLetterInput, handleEnterInput, handleBackspaceInput, spellEffects]);
 
   // Initial load and polling (only if WebSocket not connected)
   useEffect(() => {
@@ -269,10 +344,20 @@ function MultiplayerPage({
     if (!wsConnected) return;
 
     const handleGuessResult = (data) => {
-
       setIsSubmitting(false);
-      
+
       if (data.success) {
+        // Check if this was a spell cast
+        if (data.spell_cast) {
+          // Update spell usage tracking
+          const spell = data.result.spell;
+          if (spells[spell]) {
+            setSpells(prev => ({
+              ...prev,
+              [spell]: { ...prev[spell], used: true }
+            }));
+          }
+        }
         // Handle successful guess - game state will be updated via WebSocket
         // Game result alerts removed - GameResultModal handles win/lose/draw display
       } else {
@@ -282,11 +367,87 @@ function MultiplayerPage({
     };
 
     websocketService.on('guess_result', handleGuessResult);
-    
+
     return () => {
       websocketService.off('guess_result', handleGuessResult);
     };
-  }, [wsConnected, user.id, showAlert, isInvalidWordError]);
+  }, [wsConnected, user.id, showAlert, isInvalidWordError, spells]);
+
+  // Handle spell effects from other players
+  useEffect(() => {
+    if (!wsConnected) return;
+
+    const handleSpellCast = (data) => {
+      const { spell, caster_id, target_ids } = data;
+
+      // Update opponent spell tracking if they cast the spell
+      if (caster_id !== user.id) {
+        setOpponentSpells(prev => ({
+          ...prev,
+          [spell]: { ...prev[spell], used: true }
+        }));
+      }
+
+      // Check if we're a target of this spell
+      if (target_ids.includes(user.id)) {
+        switch (spell) {
+          case 'FLASH':
+            // Activate flash effect for 3 seconds
+            setSpellEffects(prev => ({ ...prev, flashActive: true }));
+            setTimeout(() => {
+              setSpellEffects(prev => ({ ...prev, flashActive: false }));
+            }, 3000);
+            showAlert('⚡ FLASH! Your screen is blinded!', 'warning', 3000);
+            break;
+
+          case 'WRONG':
+            // Activate wrong spell effect for next 5 letters
+            setSpellEffects(prev => ({
+              ...prev,
+              wrongActive: true,
+              wrongLettersRemaining: 5
+            }));
+            showAlert('🎭 WRONG! Your next 5 letters will be randomized!', 'warning', 3000);
+            break;
+
+          case 'BLOCK':
+            // Activate block effect for 3 seconds
+            setSpellEffects(prev => ({ ...prev, blockActive: true }));
+            setTimeout(() => {
+              setSpellEffects(prev => ({ ...prev, blockActive: false }));
+            }, 3000);
+            showAlert('🚫 BLOCK! Your input is disabled for 3 seconds!', 'warning', 3000);
+            break;
+
+          default:
+            break;
+        }
+      }
+    };
+
+    websocketService.onSpellCast(handleSpellCast);
+
+    return () => {
+      websocketService.offSpellCast(handleSpellCast);
+    };
+  }, [wsConnected, user.id, showAlert]);
+
+  // Helper function to render spell status
+  const renderSpellStatus = (spellData) => {
+    return (
+      <div className="spell-status">
+        {Object.entries(spellData).map(([spellName, spellInfo]) => (
+          <span
+            key={spellName}
+            className={`spell-indicator ${spellInfo.used ? 'spell-indicator--used' : 'spell-indicator--available'}`}
+            title={`${spellName}: ${spellInfo.used ? 'Used' : 'Available'}`}
+          >
+            {spellName}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   // Loading state
   if (loading || !currentGameState) {
@@ -321,10 +482,14 @@ function MultiplayerPage({
 
 
   return (
-    <div 
+    <div
       className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}
       style={theme.cssProperties}
     >
+      {/* Flash Spell Effect Overlay */}
+      {spellEffects.flashActive && (
+        <div className="flash-overlay"></div>
+      )}
       {/* Alert System */}
       <Alert
         message={alert.message}
@@ -355,6 +520,7 @@ function MultiplayerPage({
               <span className="attempts">
                 {currentGameState.player.current_round}/{currentGameState.max_rounds} attempts
               </span>
+              {renderSpellStatus(spells)}
             </div>
           </div>
 
@@ -362,9 +528,12 @@ function MultiplayerPage({
             <h3>{currentGameState.opponent ? currentGameState.opponent.username.toUpperCase() : 'WAITING...'}</h3>
             <div className="player-info">
               {currentGameState.opponent ? (
-                <span className="attempts">
-                  {currentGameState.opponent.current_round}/{currentGameState.max_rounds} attempts
-                </span>
+                <>
+                  <span className="attempts">
+                    {currentGameState.opponent.current_round}/{currentGameState.max_rounds} attempts
+                  </span>
+                  {renderSpellStatus(opponentSpells)}
+                </>
               ) : (
                 <span>Waiting for opponent...</span>
               )}
@@ -392,6 +561,8 @@ function MultiplayerPage({
           gameOver={currentGameState.player.finished}
           won={currentGameState.player.won}
         />
+
+
 
         {/* Keyboard */}
         {!currentGameState.player.finished && !currentGameState.game_over && (

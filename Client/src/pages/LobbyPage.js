@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Alert from '../components/Alert';
+import RulesModal from '../components/RulesModal';
 import { getLobbyState } from '../apiService';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
@@ -42,6 +43,7 @@ function LobbyPage({
 
   // Local state
   const [userCurrentRoom, setUserCurrentRoom] = useState(null);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   // Use WebSocket lobby state only
   const currentLobbyState = wsLobbyState;
@@ -123,16 +125,12 @@ function LobbyPage({
 
   // Handle game start event
   useEffect(() => {
-    console.log('🎮 LobbyPage: gameStarted state changed:', gameStarted);
     if (gameStarted && gameStarted.success && onStartMultiplayer) {
-      console.log('🎮 LobbyPage: Starting multiplayer game with ID:', gameStarted.game_id);
       showAlert('Game is starting!', 'success', 1000);
       setTimeout(() => {
         onStartMultiplayer(gameStarted.game_id, gameStarted.players);
         clearGameStarted();
       }, 1000);
-    } else if (gameStarted && !gameStarted.success) {
-      console.log('🎮 LobbyPage: Game start failed:', gameStarted);
     }
   }, [gameStarted, onStartMultiplayer, showAlert, clearGameStarted]);
 
@@ -192,6 +190,24 @@ function LobbyPage({
 
       <div className="lobby-page__container">
         <div className="lobby-page__main">
+          {/* Rules Button */}
+          <div className="lobby-rules-section">
+            <button
+              className="rules-button"
+              onClick={() => setShowRulesModal(true)}
+            >
+              <div className="rules-button__icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25A8.966 8.966 0 0118 3.75c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0118 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="rules-button__content">
+                <span className="rules-button__title">Game Rules</span>
+                <span className="rules-button__subtitle">Learn about spells & gameplay</span>
+              </div>
+            </button>
+          </div>
+
           <div className="rooms-container">
             <div className="rooms-list">
               {currentLobbyState.rooms.map(room => {
@@ -249,6 +265,12 @@ function LobbyPage({
             </div>
           </div>
         </div>
+
+        {/* Rules Modal */}
+        <RulesModal
+          isOpen={showRulesModal}
+          onClose={() => setShowRulesModal(false)}
+        />
       </div>
     </div>
   );

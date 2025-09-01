@@ -90,6 +90,40 @@
   text-align: center;
 }
 
+/* Spell Status */
+.spell-status {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  justify-content: center;
+}
+
+.spell-indicator {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  cursor: default;
+  min-width: 35px;
+  text-align: center;
+}
+
+.spell-indicator--available {
+  opacity: 1;
+  background: var(--color-secondary, #f8fafc);
+  border: 1px solid var(--color-border, #e1e5e9);
+}
+
+.spell-indicator--used {
+  opacity: 0.4;
+  background: var(--color-border, #e1e5e9);
+  border: 1px solid var(--color-border, #e1e5e9);
+  filter: grayscale(100%);
+}
+
 /* Waiting Message */
 .waiting-message {
   text-align: center;
@@ -155,6 +189,16 @@
 .app--dark .attempts {
   color: var(--color-accent, #60a5fa);
   background: var(--color-secondary, #1e293b);
+  border-color: var(--color-border, rgba(241, 245, 249, 0.1));
+}
+
+.app--dark .spell-indicator--available {
+  background: var(--color-secondary, #1e293b);
+  border-color: var(--color-border, rgba(241, 245, 249, 0.1));
+}
+
+.app--dark .spell-indicator--used {
+  background: var(--color-border, rgba(241, 245, 249, 0.1));
   border-color: var(--color-border, rgba(241, 245, 249, 0.1));
 }
 
@@ -237,6 +281,17 @@
     padding: 0.3rem 0.6rem;
     min-width: 70px;
   }
+
+  .spell-status {
+    gap: 0.2rem;
+    margin-top: 0.25rem;
+  }
+
+  .spell-indicator {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+    min-width: 30px;
+  }
   
   .waiting-message {
     padding: 1rem;
@@ -250,6 +305,22 @@
   .waiting-message p {
     font-size: 0.85rem;
   }
+}
+
+/* Flash Spell Effect */
+.flash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+}
+
+/* Dark mode flash effect */
+.app--dark .flash-overlay {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* Additional styles for consistency with the rest of the app */

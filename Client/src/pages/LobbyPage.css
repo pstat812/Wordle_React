@@ -197,6 +197,12 @@
   50% { opacity: 0.6; }
 }
 
+/* Lobby Rules Section */
+.lobby-rules-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
 /* Modern Button Design */
 .btn {
   padding: 0.75rem 1.5rem;
@@ -272,6 +278,83 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* Redesigned Rules Button */
+.rules-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 1.25rem 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.25);
+  position: relative;
+  overflow: hidden;
+  min-width: 280px;
+}
+
+.rules-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.rules-button:hover::before {
+  left: 100%;
+}
+
+.rules-button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(79, 70, 229, 0.35);
+  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+}
+
+.rules-button__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.rules-button__icon svg {
+  width: 20px;
+  height: 20px;
+  color: white;
+}
+
+.rules-button__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.rules-button__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: white;
+}
+
+.rules-button__subtitle {
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .btn--disabled::before {
   display: none;
 }
@@ -341,6 +424,18 @@
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
+/* Dark Mode Rules Button */
+.lobby-page--dark .rules-button {
+  background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+  box-shadow: 0 4px 15px rgba(71, 85, 105, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.lobby-page--dark .rules-button:hover {
+  background: linear-gradient(135deg, #334155 0%, #475569 100%);
+  box-shadow: 0 12px 30px rgba(71, 85, 105, 0.25);
+}
+
 
 
 .lobby-page--dark .btn--disabled {
@@ -402,6 +497,30 @@
     padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
     min-width: 80px;
+  }
+
+  .rules-button {
+    min-width: 240px;
+    padding: 1rem 1.5rem;
+    gap: 0.75rem;
+  }
+
+  .rules-button__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .rules-button__icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rules-button__title {
+    font-size: 1rem;
+  }
+
+  .rules-button__subtitle {
+    font-size: 0.8rem;
   }
 }
 

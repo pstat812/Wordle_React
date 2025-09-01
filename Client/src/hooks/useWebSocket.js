@@ -289,9 +289,7 @@ export function useLobbyWebSocket() {
 
     // Game started handler
     const handleGameStarted = (data) => {
-      console.log('🎮 Client received game_started event:', data);
-      console.log('🎮 Current lobby state:', lobbyState);
-      console.log('🎮 Is connected:', isConnected);
+
       setGameStarted(data);
     };
 
