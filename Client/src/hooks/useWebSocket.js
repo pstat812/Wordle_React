@@ -235,13 +235,7 @@ export function useLobbyWebSocket() {
     }
   }, [isConnected, token, websocketService]);
 
-  // Start game
-  const startGame = useCallback((roomId) => {
-    if (isConnected && token) {
-      // Starting multiplayer game in room
-      websocketService.startMultiplayerGame(roomId, token);
-    }
-  }, [isConnected, token, websocketService]);
+
 
   // Clear room join result
   const clearRoomJoinResult = useCallback(() => {
@@ -295,7 +289,9 @@ export function useLobbyWebSocket() {
 
     // Game started handler
     const handleGameStarted = (data) => {
-      // Game started
+      console.log('🎮 Client received game_started event:', data);
+      console.log('🎮 Current lobby state:', lobbyState);
+      console.log('🎮 Is connected:', isConnected);
       setGameStarted(data);
     };
 
@@ -361,7 +357,6 @@ export function useLobbyWebSocket() {
     leaveLobby,
     joinRoom,
     leaveRoom,
-    startGame,
     clearRoomJoinResult,
     clearGameStarted,
     refreshLobbyState

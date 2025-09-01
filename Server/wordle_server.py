@@ -458,9 +458,9 @@ class WordleServer:
                         game_result='forfeit'
                     )
                     
-                    # Clean up the room associated with this game
+                    # Clean up room if player was in lobby
                     if lobby_manager:
-                        lobby_manager.cleanup_room_after_game(game_id)
+                        lobby_manager.cleanup_after_disconnect(user_id)
                     
                     print(f"🏳️ Game {game_id}: {username} forfeited due to disconnect")
         
@@ -681,18 +681,10 @@ def heartbeat_cleanup_worker():
                         # Auto-leave lobby room if user was in one
                         if user_id and lobby_manager:
                             try:
-                                print(f"🔍 Checking if user {username} ({user_id}) is in a lobby room...")
-                                leave_result = lobby_manager.leave_room(user_id)
-                                if leave_result['success']:
-                                    game_logger.logger.info(f"🚪 User '{username}' automatically removed from lobby room due to disconnect")
-                                    print(f"🚪 {username} - Auto removed from lobby room")
-                                else:
-                                    print(f"ℹ️ User {username} was not in any lobby room")
+                                lobby_manager.cleanup_after_disconnect(user_id)
+                                print(f"🚪 {username} - Auto removed from lobby room")
                             except Exception as lobby_error:
-                                game_logger.logger.error(f"❌ Failed to remove disconnected user {username} from lobby: {lobby_error}")
                                 print(f"❌ Lobby removal error for {username}: {lobby_error}")
-                        else:
-                            print(f"⚠️ Cannot remove {username} from lobby - user_id: {user_id}, lobby_manager: {lobby_manager is not None}")
                         
                         # Auto-forfeit multiplayer games if user was in one
                         if user_id and server:
@@ -1284,333 +1276,135 @@ def get_profile():
 
 
 # ============================================================================
-# MULTIPLAYER / LOBBY FUNCTIONALITY
+# SIMPLIFIED MULTIPLAYER / LOBBY FUNCTIONALITY
 # ============================================================================
 
-class LobbyManager:
+class SimpleLobbyManager:
     """
-    Manages multiplayer lobby and room functionality.
-    Handles real-time room state and player management.
+    Simplified lobby manager for multiplayer rooms.
+    Uses simple in-memory state without complex threading.
     """
     
     def __init__(self):
+        # Simple room structure - just 3 rooms
         self.rooms = {
-            1: {'id': 1, 'name': 'Room 1', 'players': [], 'max_players': 2, 'game_id': None},
-            2: {'id': 2, 'name': 'Room 2', 'players': [], 'max_players': 2, 'game_id': None},
-            3: {'id': 3, 'name': 'Room 3', 'players': [], 'max_players': 2, 'game_id': None}
+            1: {'id': 1, 'name': 'Room 1', 'players': []},
+            2: {'id': 2, 'name': 'Room 2', 'players': []},
+            3: {'id': 3, 'name': 'Room 3', 'players': []}
         }
-        self.user_rooms = {}  # Maps user_id to room_id
-        self.lock = threading.Lock()  # Thread safety for concurrent access
+        # Track which room each user is in
+        self.user_to_room = {}  # user_id -> room_id
     
     def get_lobby_state(self):
         """Get current state of all rooms."""
-        with self.lock:
-            return {
-                'success': True,
-                'rooms': list(self.rooms.values())
-            }
+        rooms = []
+        for room_id, room in self.rooms.items():
+            rooms.append({
+                'id': room_id,
+                'name': room['name'],
+                'players': room['players'].copy(),
+                'max_players': 2
+            })
+        return {'success': True, 'rooms': rooms}
     
     def join_room(self, user_id, username, room_id):
-        """Add user to a room."""
-        with self.lock:
-            # Check if room exists
-            if room_id not in self.rooms:
-                return {'success': False, 'error': 'Room not found'}
-            
-            room = self.rooms[room_id]
-            
-            # Check if room is full
-            if len(room['players']) >= room['max_players']:
-                return {'success': False, 'error': 'Room is full'}
-            
-            # Check if user is already in this room
-            if any(player['id'] == user_id for player in room['players']):
-                return {'success': False, 'error': 'Already in this room'}
-            
-            # Remove user from current room if they're in one
-            if user_id in self.user_rooms:
-                self.leave_room(user_id)
-            
-            # Add user to room
-            player = {'id': user_id, 'username': username}
-            room['players'].append(player)
-            self.user_rooms[user_id] = room_id
-            
-            print(f"✅ Added user {username} ({user_id}) to room {room_id}")
-            print(f"🔍 Updated user_rooms mapping: {self.user_rooms}")
-            
-            game_logger.logger.info(f"🏠 Player {username} joined {room['name']} (Room {room_id})")
-            
-            # Auto-start game if room is now full (2 players)
-            if len(room['players']) == 2:
-                print(f"🎮 Room {room_id} is full, auto-starting game...")
-                # Small delay to let both players see they joined
-                def delayed_start():
-                    time.sleep(1)  # 1 second delay
-                    start_result = self.start_multiplayer_game(user_id, room_id)
-                    if start_result['success']:
-                        game_id = start_result['game_id']
-                        print(f"🎮 HTTP: Auto-started multiplayer game {game_id} in room {room_id}")
-                
-                # Start game in background thread
-                import threading
-                start_thread = threading.Thread(target=delayed_start, daemon=True)
-                start_thread.start()
+        """Join a user to a room."""
+        # Check if room exists
+        if room_id not in self.rooms:
+            return {'success': False, 'error': 'Room not found'}
+        
+        room = self.rooms[room_id]
+        
+        # Check if room is full
+        if len(room['players']) >= 2:
+            return {'success': False, 'error': 'Room is full'}
+        
+        # Check if user is already in this room
+        if any(p['id'] == user_id for p in room['players']):
+            return {'success': False, 'error': 'Already in this room'}
+        
+        # Remove from current room if in one
+        self.leave_room(user_id)
+        
+        # Add to new room
+        player = {'id': user_id, 'username': username}
+        room['players'].append(player)
+        self.user_to_room[user_id] = room_id
+        
+        # Auto-start game if room is now full
+        if len(room['players']) == 2:
+            print(f"🎮 Room {room_id} ({room['name']}) is now full with players: {[p['username'] for p in room['players']]}")
+
+            # Check if server is available
+            if 'server' not in globals():
+                print("❌ Server object not available!")
+                return {
+                    'success': False,
+                    'error': 'Server not available'
+                }
+
+            game_id = server.create_new_game('multiplayer')
+            print(f"🎮 Created multiplayer game: {game_id}")
+
+            # Add both players to the game
+            for p in room['players']:
+                result = server.add_player_to_multiplayer_game(game_id, p['id'], p['username'])
+                print(f"🎮 Added player {p['username']} to game {game_id}: {result}")
             
             return {
                 'success': True,
-                'room': room,
-                'message': f'Joined {room["name"]}',
-                'auto_start': len(room['players']) == 2  # Indicate if game will auto-start
+                'room_full': True,
+                'game_id': game_id,
+                'players': room['players'].copy()
             }
+        
+        return {
+            'success': True,
+            'room_full': False,
+            'message': f'Joined {room["name"]}'
+        }
     
     def leave_room(self, user_id):
         """Remove user from their current room."""
-        with self.lock:
-            print(f"🔍 LobbyManager.leave_room called for user_id: {user_id}")
-            print(f"🔍 Current user_rooms mapping: {self.user_rooms}")
-            
-            if user_id not in self.user_rooms:
-                print(f"ℹ️ User {user_id} not found in user_rooms mapping")
-                return {'success': False, 'error': 'Not in any room'}
-            
-            room_id = self.user_rooms[user_id]
-            room = self.rooms[room_id]
-            print(f"🔍 Found user {user_id} in room {room_id}: {room['name']}")
-            print(f"🔍 Room players before removal: {[p['username'] for p in room['players']]}")
-            
-            # Find and remove player
-            username = None
-            for i, player in enumerate(room['players']):
-                if player['id'] == user_id:
-                    username = player['username']
-                    room['players'].pop(i)
-                    break
-            
-            # Remove from user_rooms mapping
-            del self.user_rooms[user_id]
-            
-            print(f"🔍 Room players after removal: {[p['username'] for p in room['players']]}")
-            print(f"🔍 user_rooms after removal: {self.user_rooms}")
-            
-            game_logger.logger.info(f"🚪 Player {username} left {room['name']} (Room {room_id})")
-            print(f"✅ Successfully removed {username} from {room['name']}")
-            
-            return {
-                'success': True,
-                'room': room,
-                'message': f'Left {room["name"]}'
-            }
+        if user_id not in self.user_to_room:
+            return {'success': False, 'error': 'Not in any room'}
+        
+        room_id = self.user_to_room[user_id]
+        room = self.rooms[room_id]
+        
+        # Remove player from room
+        room['players'] = [p for p in room['players'] if p['id'] != user_id]
+        del self.user_to_room[user_id]
+        
+        return {
+            'success': True,
+            'message': f'Left {room["name"]}'
+        }
     
     def get_user_room(self, user_id):
-        """Get the room a user is currently in."""
-        with self.lock:
-            if user_id in self.user_rooms:
-                room_id = self.user_rooms[user_id]
-                return self.rooms[room_id]
-            return None
+        """Get the room a user is in."""
+        if user_id in self.user_to_room:
+            room_id = self.user_to_room[user_id]
+            return self.rooms[room_id]
+        return None
     
-    def reset_all_rooms(self):
-        """Reset all rooms to empty state. Used for complete cleanup."""
-        with self.lock:
-            print("🧹 Resetting all rooms to empty state")
-            
-            # Clear all players from all rooms
-            for room_id, room in self.rooms.items():
-                players_count = len(room['players'])
-                if players_count > 0:
-                    print(f"   Clearing {players_count} players from {room['name']}")
-                room['players'] = []
-                room['game_id'] = None
-            
-            # Clear all user-room mappings
-            user_count = len(self.user_rooms)
-            if user_count > 0:
-                print(f"   Clearing {user_count} user-room mappings")
-            self.user_rooms.clear()
-            
-            print("✅ All rooms reset to empty state")
-            
-            return {
-                'success': True,
-                'message': 'All rooms have been reset'
-            }
-    
-    def cleanup_room_after_game(self, game_id):
-        """Clean up room state after a multiplayer game ends or is abandoned."""
-        with self.lock:
-            print(f"🧹 Starting cleanup_room_after_game for game_id: {game_id}")
-            print(f"🔍 Current rooms state before cleanup:")
-            for rid, r in self.rooms.items():
-                print(f"   Room {rid} ({r['name']}): {len(r['players'])} players - {[p['username'] for p in r['players']]}")
-            print(f"🔍 Current user_rooms mapping: {self.user_rooms}")
-            
-            for room_id, room in self.rooms.items():
-                if room.get('game_id') == game_id:
-                    print(f"🎯 Found room {room_id} ({room['name']}) with game_id {game_id}")
-                    print(f"🔍 Room players before cleanup: {[p['username'] for p in room['players']]}")
-                    
-                    # Properly remove each player using the leave_room method
-                    # This ensures all state is cleaned up correctly
-                    players_to_remove = room['players'].copy()  # Make a copy to avoid modifying while iterating
-                    for player in players_to_remove:
-                        user_id = player['id']
-                        username = player['username']
-                        print(f"🚪 Force-removing player {username} ({user_id}) from room")
-                        
-                        # Use the proper leave_room method to ensure all cleanup
-                        try:
-                            leave_result = self.leave_room(user_id)
-                            print(f"✅ Force leave result for {username}: {leave_result}")
-                        except Exception as leave_error:
-                            print(f"❌ Error force-leaving {username}: {leave_error}")
-                            # Fallback: manually remove from room if leave_room fails
-                            if player in room['players']:
-                                room['players'].remove(player)
-                            if user_id in self.user_rooms:
-                                del self.user_rooms[user_id]
-                    
-                    # Reset room game state
-                    room['game_id'] = None
-                    # Players should already be cleared by the leave_room calls above
-                    
-                    print(f"🔍 Final room state - Players: {[p['username'] for p in room['players']]}")
-                    print(f"🔍 Final user_rooms mapping: {self.user_rooms}")
-                    
-                    game_logger.logger.info(f"🧹 Cleaned up {room['name']} after game {game_id} ended")
-                    print(f"🧹 Cleaned up {room['name']} after game ended")
-                    
-                    # Broadcast updated lobby state to all lobby users
-                    if 'socketio' in globals():
-                        lobby_state = self.get_lobby_state()
-                        socketio.emit('lobby_state_update', lobby_state, room="lobby")
-                        print(f"📡 Broadcasted lobby state update after room cleanup")
-                        print(f"🔍 Updated lobby state after cleanup: {lobby_state}")
-                    else:
-                        print("⚠️ SocketIO not available for broadcasting lobby state update")
-                    
-                    break
-                    
-            print(f"🏁 Finished cleanup_room_after_game for game_id: {game_id}")
-    
-    def clear_room_players_after_game_start(self, game_id):
-        """Clear room players after game starts to prevent lobby issues."""
-        with self.lock:
-            for room_id, room in self.rooms.items():
-                if room.get('game_id') == game_id:
-                    # Clear user_rooms mapping for this room (players are now in game)
-                    users_to_remove = []
-                    for user_id, mapped_room_id in self.user_rooms.items():
-                        if mapped_room_id == room_id:
-                            users_to_remove.append(user_id)
-                    
-                    for user_id in users_to_remove:
-                        del self.user_rooms[user_id]
-                    
-                    game_logger.logger.info(f"🎮 Cleared {room['name']} player mappings after game {game_id} started")
-                    print(f"🎮 Cleared {room['name']} player mappings after game started")
-                    break
-    
-    def start_multiplayer_game(self, user_id, room_id):
-        """Start a multiplayer game from a room."""
-        with self.lock:
-            if room_id not in self.rooms:
-                return {'success': False, 'error': 'Room not found'}
-            
-            room = self.rooms[room_id]
-            
-            # Check if user is in this room
-            if user_id not in self.user_rooms or self.user_rooms[user_id] != room_id:
-                return {'success': False, 'error': 'Not in this room'}
-            
-            # Check if room has exactly 2 players
-            if len(room['players']) != 2:
-                return {'success': False, 'error': 'Need exactly 2 players to start'}
-            
-            # Create multiplayer game
-            game_id = server.create_new_game('multiplayer')
-            room['game_id'] = game_id
-            
-            # Add both players to the multiplayer game
-            for player in room['players']:
-                server.add_player_to_multiplayer_game(game_id, player['id'], player['username'])
-            
-            game_logger.logger.info(f"🎮 Multiplayer game started in {room['name']} (Game ID: {game_id})")
-            
-            # Schedule room player cleanup after a delay (5 seconds) to allow both clients to detect game start
-            def delayed_cleanup():
-                time.sleep(5)
-                self.clear_room_players_after_game_start(game_id)
-            
-            cleanup_thread = threading.Thread(target=delayed_cleanup, daemon=True)
-            cleanup_thread.start()
-            
-            return {
-                'success': True,
-                'game_id': game_id,
-                'room': room,
-                'players': room['players']
-            }
+    def cleanup_after_disconnect(self, user_id):
+        """Clean up when user disconnects."""
+        return self.leave_room(user_id)
 
-# Initialize lobby manager
-lobby_manager = LobbyManager()
+# Initialize simplified lobby manager
+lobby_manager = SimpleLobbyManager()
 
-# Lobby API endpoints
+# Simplified lobby endpoints
 @app.route('/api/lobby/state', methods=['GET'])
 @require_auth
 def get_lobby_state():
-    """Get current lobby state with all rooms."""
+    """Get current lobby state."""
     try:
         result = lobby_manager.get_lobby_state()
-        game_logger.log_server_response(request, 'lobby_state', True, result)
         return jsonify(result)
-        
     except Exception as e:
-        game_logger.log_error(request, e, 'lobby_state')
-        error_response = {
-            'success': False,
-            'error': str(e)
-        }
-        game_logger.log_server_response(request, 'lobby_state', False, error_response)
-        return jsonify(error_response), 500
-
-# HTTP API endpoints for join/leave room removed - using WebSocket only
-
-@app.route('/api/multiplayer/start', methods=['POST'])
-@require_auth
-def start_multiplayer_game():
-    """Start a multiplayer game from a room."""
-    try:
-        data = request.get_json()
-        if not data or 'room_id' not in data:
-            return jsonify({
-                'success': False,
-                'error': 'Room ID is required'
-            }), 400
-        
-        room_id = data['room_id']
-        user_id = request.user['id']
-        
-        # Log user action
-        game_logger.log_user_action(request, 'start_multiplayer', extra_data={'room_id': room_id})
-        
-        result = lobby_manager.start_multiplayer_game(user_id, room_id)
-        
-        if result['success']:
-            game_logger.log_server_response(request, 'start_multiplayer', True, result)
-            return jsonify(result)
-        else:
-            game_logger.log_server_response(request, 'start_multiplayer', False, result)
-            return jsonify(result), 400
-            
-    except Exception as e:
-        game_logger.log_error(request, e, 'start_multiplayer')
-        error_response = {
-            'success': False,
-            'error': str(e)
-        }
-        game_logger.log_server_response(request, 'start_multiplayer', False, error_response)
-        return jsonify(error_response), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/multiplayer/<game_id>/state', methods=['GET'])
 @require_auth
@@ -1703,25 +1497,18 @@ def make_multiplayer_guess(game_id):
 
 
 # ============================================================================
-# WEBSOCKET EVENT HANDLERS FOR REAL-TIME MULTIPLAYER
+# SIMPLIFIED WEBSOCKET EVENT HANDLERS
 # ============================================================================
 
-# Store connected users and their socket IDs
+# Simple tracking of connected users
 connected_users = {}  # user_id -> socket_id
-user_games = {}       # user_id -> game_id
-lobby_users = {}      # user_id -> socket_id (users in lobby)
 
 def websocket_auth_required(f):
-    """Decorator to require authentication for WebSocket events."""
+    """Decorator for WebSocket authentication."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not auth_service:
-            emit('error', {'error': 'Authentication service unavailable'})
-            return
-        
-        # Get token from the event data
-        if not args or 'token' not in args[0]:
-            emit('error', {'error': 'Authentication token required'})
+        if not auth_service or not args or 'token' not in args[0]:
+            emit('error', {'error': 'Authentication required'})
             return
         
         token = args[0]['token']
@@ -1731,7 +1518,6 @@ def websocket_auth_required(f):
             emit('error', {'error': result['error']})
             return
         
-        # Add user data to kwargs
         kwargs['user'] = result['user']
         return f(*args, **kwargs)
     
@@ -1746,10 +1532,7 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle WebSocket disconnection."""
-    print(f"🔌 WebSocket client disconnected: {request.sid}")
-    game_logger.logger.info(f"🔌 WebSocket client disconnected: {request.sid}")
-    
-    # Find and remove user from connected_users
+    # Find user and clean up
     user_id_to_remove = None
     for user_id, socket_id in connected_users.items():
         if socket_id == request.sid:
@@ -1757,42 +1540,15 @@ def handle_disconnect():
             break
     
     if user_id_to_remove:
-        print(f"🧹 Cleaning up user {user_id_to_remove} on disconnect")
-        
-        # Remove from connected_users
+        # Remove from connected users
         del connected_users[user_id_to_remove]
         
-        # Leave any game rooms
-        if user_id_to_remove in user_games:
-            game_id = user_games[user_id_to_remove]
-            leave_room(f"game_{game_id}")
-            del user_games[user_id_to_remove]
-            print(f"🚪 User {user_id_to_remove} left game room {game_id}")
+        # Clean up lobby room membership
+        lobby_manager.cleanup_after_disconnect(user_id_to_remove)
         
-        # Remove from lobby room (WebSocket room)
-        if user_id_to_remove in lobby_users:
-            leave_room("lobby")
-            del lobby_users[user_id_to_remove]
-            print(f"🚪 User {user_id_to_remove} left lobby WebSocket room")
-        
-        # IMPORTANT: Remove user from any multiplayer rooms they're in
-        # This ensures rooms are cleaned when users disconnect/go back to menu
-        try:
-            leave_result = lobby_manager.leave_room(user_id_to_remove)
-            if leave_result['success']:
-                print(f"✅ Removed user {user_id_to_remove} from multiplayer room: {leave_result['message']}")
-            else:
-                print(f"ℹ️ User {user_id_to_remove} was not in any multiplayer room")
-        except Exception as room_leave_error:
-            print(f"❌ Error removing user {user_id_to_remove} from room: {room_leave_error}")
-            
-        # Broadcast updated lobby state to remaining users
-        try:
-            lobby_state = lobby_manager.get_lobby_state()
-            socketio.emit('lobby_state_update', lobby_state, room="lobby")
-            print(f"📡 Broadcasted updated lobby state after disconnect cleanup")
-        except Exception as e:
-            print(f"❌ Error broadcasting lobby update on disconnect: {e}")
+        # Broadcast updated lobby state
+        lobby_state = lobby_manager.get_lobby_state()
+        socketio.emit('lobby_state_update', lobby_state, room="lobby")
 
 @socketio.on('join_multiplayer_game')
 @websocket_auth_required
@@ -1816,7 +1572,6 @@ def handle_join_multiplayer_game(data, user=None):
         # Join the game room
         join_room(f"game_{game_id}")
         connected_users[user_id] = request.sid
-        user_games[user_id] = game_id
         
         print(f"🎮 {username} joined multiplayer game room: {game_id}")
         game_logger.logger.info(f"🎮 WebSocket: {username} joined multiplayer game {game_id}")
@@ -1855,8 +1610,6 @@ def handle_leave_multiplayer_game(data, user=None):
         
         if user_id in connected_users:
             del connected_users[user_id]
-        if user_id in user_games:
-            del user_games[user_id]
         
         print(f"🚪 {username} left multiplayer game room: {game_id}")
         game_logger.logger.info(f"🚪 WebSocket: {username} left multiplayer game {game_id}")
@@ -1875,328 +1628,127 @@ def handle_leave_multiplayer_game(data, user=None):
 @websocket_auth_required
 def handle_join_lobby(data, user=None):
     """Join the lobby for real-time room updates."""
-    try:
-        user_id = user['id']
-        username = user['username']
-        
-        # Join the lobby room
-        join_room("lobby")
-        lobby_users[user_id] = request.sid
-        connected_users[user_id] = request.sid
-        
-        print(f"🏠 {username} joined lobby")
-        game_logger.logger.info(f"🏠 WebSocket: {username} joined lobby")
-        
-        # Send current lobby state
-        lobby_state = lobby_manager.get_lobby_state()
-        emit('lobby_state_update', lobby_state)
-        
-        # Notify other users in lobby
-        emit('user_joined_lobby', {
-            'user_id': user_id,
-            'username': username
-        }, room="lobby", include_self=False)
-        
-    except Exception as e:
-        print(f"❌ Error joining lobby: {e}")
-        emit('error', {'error': str(e)})
+    user_id = user['id']
+    connected_users[user_id] = request.sid
+    
+    # Join lobby WebSocket room
+    join_room("lobby")
+    
+    # Send current lobby state
+    lobby_state = lobby_manager.get_lobby_state()
+    emit('lobby_state_update', lobby_state)
 
 @socketio.on('leave_lobby')
 @websocket_auth_required
 def handle_leave_lobby(data, user=None):
     """Leave the lobby."""
-    try:
-        user_id = user['id']
-        username = user['username']
-        
-        print(f"🧹 {username} leaving lobby - cleaning up all multiplayer state")
-        
-        # Leave the lobby WebSocket room
-        leave_room("lobby")
-        
-        if user_id in lobby_users:
-            del lobby_users[user_id]
-        
-        # IMPORTANT: Remove user from any multiplayer rooms they're in
-        # This ensures clean state when users go back to menu
-        try:
-            leave_result = lobby_manager.leave_room(user_id)
-            if leave_result['success']:
-                print(f"✅ Removed {username} from multiplayer room: {leave_result['message']}")
+    user_id = user['id']
+    
+    # Clean up lobby room membership
+    lobby_manager.cleanup_after_disconnect(user_id)
+    
+    # Leave lobby WebSocket room
+    leave_room("lobby")
+    
+    # Broadcast updated lobby state
+    lobby_state = lobby_manager.get_lobby_state()
+    socketio.emit('lobby_state_update', lobby_state, room="lobby")
+
+@socketio.on('join_room')
+@websocket_auth_required
+def handle_join_room(data, user=None):
+    """Join a multiplayer room."""
+    room_id = data.get('room_id')
+    if not room_id:
+        emit('error', {'error': 'Room ID required'})
+        return
+    
+    user_id = user['id']
+    username = user['username']
+    
+    # Join room
+    result = lobby_manager.join_room(user_id, username, room_id)
+    
+    # Broadcast lobby state update first
+    lobby_state = lobby_manager.get_lobby_state()
+    socketio.emit('lobby_state_update', lobby_state, room="lobby")
+
+    # If room is full, start game immediately
+    if result.get('room_full'):
+        print(f"🎮 Room {room_id} is full! Starting game {result['game_id']} with players: {[p['username'] for p in result['players']]}")
+        print(f"🎮 Connected users: {list(connected_users.keys())}")
+
+        # Notify both players that game is starting
+        game_started_data = {
+            'success': True,
+            'game_id': result['game_id'],
+            'players': result['players']
+        }
+
+        # Send to each player individually
+        for player in result['players']:
+            if player['id'] in connected_users:
+                socket_id = connected_users[player['id']]
+                print(f"🎮 Sending game_started event to player {player['username']} ({player['id']}) via socket {socket_id}")
+                try:
+                    socketio.emit('game_started', game_started_data, room=socket_id)
+                    print(f"✅ game_started event sent successfully to {player['username']}")
+                except Exception as emit_error:
+                    print(f"❌ Failed to emit game_started to {player['username']}: {emit_error}")
             else:
-                print(f"ℹ️ {username} was not in any multiplayer room")
-        except Exception as room_leave_error:
-            print(f"❌ Error removing {username} from room: {room_leave_error}")
-        
-        print(f"🚪 {username} left lobby")
-        game_logger.logger.info(f"🚪 WebSocket: {username} left lobby")
-        
-        # Notify other users in lobby
-        emit('user_left_lobby', {
-            'user_id': user_id,
-            'username': username
-        }, room="lobby", include_self=False)
-        
-        # Broadcast updated lobby state to remaining users
-        try:
-            lobby_state = lobby_manager.get_lobby_state()
-            socketio.emit('lobby_state_update', lobby_state, room="lobby")
-            print(f"📡 Broadcasted updated lobby state after {username} left")
-        except Exception as lobby_error:
-            print(f"❌ Error broadcasting lobby update after leave: {lobby_error}")
-        
-    except Exception as e:
-        print(f"❌ Error leaving lobby: {e}")
-        emit('error', {'error': str(e)})
+                print(f"⚠️ Player {player['username']} ({player['id']}) not found in connected_users")
 
-@socketio.on('ws_join_room')
-@websocket_auth_required
-def handle_ws_join_room(data, user=None):
-    """Join a multiplayer room via WebSocket."""
-    try:
-        room_id = data.get('room_id')
-        if not room_id:
-            emit('error', {'error': 'Room ID is required'})
-            return
-        
-        user_id = user['id']
-        username = user['username']
-        
-        # Use the existing lobby manager to join room
-        result = lobby_manager.join_room(user_id, username, room_id)
-        
-        if result['success']:
-            # Broadcast lobby state update to all lobby users
-            lobby_state = lobby_manager.get_lobby_state()
-            socketio.emit('lobby_state_update', lobby_state, room="lobby")
-            
-            emit('room_join_result', result)
-            print(f"🏠 WebSocket: {username} joined room {room_id}")
-            
-            # Auto-start game if room is now full (2 players)
-            if result['room'] and len(result['room']['players']) == 2:
-                print(f"🎮 Room {room_id} is full, auto-starting game...")
-                # Small delay to let both players see they joined
-                def delayed_start():
-                    time.sleep(1)  # 1 second delay
-                    start_result = lobby_manager.start_multiplayer_game(user_id, room_id)
-                    if start_result['success']:
-                        game_id = start_result['game_id']
-                        
-                        # Notify all players in the room about game start
-                        for player in start_result['players']:
-                            player_socket_id = connected_users.get(player['id'])
-                            if player_socket_id:
-                                socketio.emit('game_started', {
-                                    'success': True,
-                                    'game_id': game_id,
-                                    'room': start_result['room'],
-                                    'players': start_result['players']
-                                }, room=player_socket_id)
-                        
-                        # Update lobby state for all lobby users
-                        updated_lobby_state = lobby_manager.get_lobby_state()
-                        socketio.emit('lobby_state_update', updated_lobby_state, room="lobby")
-                        
-                        print(f"🎮 WebSocket: Auto-started multiplayer game {game_id} in room {room_id}")
-                
-                # Start game in background thread
-                import threading
-                start_thread = threading.Thread(target=delayed_start, daemon=True)
-                start_thread.start()
-            
-        else:
-            emit('room_join_result', result)
-            
-    except Exception as e:
-        print(f"❌ Error joining room via WebSocket: {e}")
-        emit('error', {'error': str(e)})
+        # Also broadcast to lobby room for any clients that might be listening
+        print("📡 Broadcasting game_started to lobby room as backup")
+        socketio.emit('game_started', game_started_data, room="lobby")
 
-@socketio.on('ws_leave_room')
-@websocket_auth_required
-def handle_ws_leave_room(data, user=None):
-    """Leave current room via WebSocket."""
-    try:
-        user_id = user['id']
-        username = user['username']
-        
-        # Use the existing lobby manager to leave room
-        print(f"🔍 Attempting to leave room for user {username} ({user_id})")
-        result = lobby_manager.leave_room(user_id)
-        print(f"🔍 Leave room result: {result}")
-        
-        # Always broadcast lobby state update (even if user wasn't in a room)
-        lobby_state = lobby_manager.get_lobby_state()
-        socketio.emit('lobby_state_update', lobby_state, room="lobby")
-        
-        emit('room_leave_result', result)
-        print(f"🚪 WebSocket: {username} left room")
-            
-    except Exception as e:
-        print(f"❌ Error leaving room via WebSocket: {e}")
-        emit('error', {'error': str(e)})
+        # Broadcast updated lobby state after game starts
+        updated_lobby_state = lobby_manager.get_lobby_state()
+        socketio.emit('lobby_state_update', updated_lobby_state, room="lobby")
+    
+    emit('room_join_result', result)
 
-@socketio.on('ws_start_multiplayer_game')
+@socketio.on('leave_room')
 @websocket_auth_required
-def handle_ws_start_multiplayer_game(data, user=None):
-    """Start a multiplayer game via WebSocket."""
-    try:
-        room_id = data.get('room_id')
-        if not room_id:
-            emit('error', {'error': 'Room ID is required'})
-            return
-        
-        user_id = user['id']
-        username = user['username']
-        
-        # Use the existing lobby manager to start game
-        result = lobby_manager.start_multiplayer_game(user_id, room_id)
-        
-        if result['success']:
-            game_id = result['game_id']
-            
-            # Notify all players in the room about game start
-            for player in result['players']:
-                player_socket_id = connected_users.get(player['id'])
-                if player_socket_id:
-                    socketio.emit('game_started', {
-                        'success': True,
-                        'game_id': game_id,
-                        'room': result['room'],
-                        'players': result['players']
-                    }, room=player_socket_id)
-            
-            # Update lobby state for all lobby users
-            lobby_state = lobby_manager.get_lobby_state()
-            socketio.emit('lobby_state_update', lobby_state, room="lobby")
-            
-            print(f"🎮 WebSocket: {username} started multiplayer game {game_id}")
-        else:
-            emit('game_start_result', result)
-            
-    except Exception as e:
-        print(f"❌ Error starting multiplayer game via WebSocket: {e}")
-        emit('error', {'error': str(e)})
+def handle_leave_room(data, user=None):
+    """Leave current room."""
+    user_id = user['id']
+    
+    # Leave room
+    result = lobby_manager.leave_room(user_id)
+    
+    # Broadcast lobby state update
+    lobby_state = lobby_manager.get_lobby_state()
+    socketio.emit('lobby_state_update', lobby_state, room="lobby")
+    
+    emit('room_leave_result', result)
 
-@socketio.on('ws_reset_all_rooms')
-@websocket_auth_required
-def handle_ws_reset_all_rooms(data, user=None):
-    """Reset all rooms to empty state. For debugging/cleanup purposes."""
-    try:
-        username = user['username']
-        print(f"🧹 {username} requested to reset all rooms")
-        
-        # Reset all rooms
-        result = lobby_manager.reset_all_rooms()
-        
-        # Broadcast updated lobby state to all lobby users
-        lobby_state = lobby_manager.get_lobby_state()
-        socketio.emit('lobby_state_update', lobby_state, room="lobby")
-        
-        emit('room_reset_result', result)
-        print(f"✅ All rooms reset by {username}")
-        
-    except Exception as e:
-        print(f"❌ Error resetting all rooms: {e}")
-        emit('error', {'error': str(e)})
 
-@socketio.on('ws_submit_guess')
+
+@socketio.on('submit_guess')
 @websocket_auth_required
-def handle_ws_submit_guess(data, user=None):
+def handle_submit_guess(data, user=None):
     """Submit a guess via WebSocket."""
-    try:
-        game_id = data.get('game_id')
-        guess = data.get('guess')
+    game_id = data.get('game_id')
+    guess = data.get('guess')
+    
+    if not game_id or not guess:
+        emit('error', {'error': 'Game ID and guess required'})
+        return
+    
+    # Process the guess
+    result = server.make_multiplayer_guess(game_id, user['id'], guess)
+    
+    if result and 'error' not in result:
+        # Send result to the player
+        emit('guess_result', {'success': True, 'result': result})
         
-        if not game_id or not guess:
-            emit('error', {'error': 'Game ID and guess are required'})
-            return
-        
-        user_id = user['id']
-        username = user['username']
-        
-        # Log the multiplayer guess attempt
-        game_logger.log_game_event(
-            game_id, 
-            'multiplayer_guess_attempt', 
-            user_id,
-            username=username,
-            guess=guess,
-            guess_length=len(guess),
-            method='websocket'
-        )
-        
-        # Process the guess using existing server logic
-        result = server.make_multiplayer_guess(game_id, user_id, guess)
-        
-        if result:
-            if "error" in result:
-                # Log failed guess
-                game_logger.log_game_event(
-                    game_id, 
-                    'multiplayer_guess_failed', 
-                    user_id,
-                    username=username,
-                    guess=guess,
-                    error=result["error"],
-                    method='websocket'
-                )
-                
-                emit('guess_result', {
-                    'success': False,
-                    'error': result["error"]
-                })
-            else:
-                # Log successful guess
-                game_logger.log_game_event(
-                    game_id, 
-                    'multiplayer_guess_success', 
-                    user_id,
-                    username=username,
-                    guess=guess,
-                    won=result.get('player_state', {}).get('won', False),
-                    finished=result.get('player_state', {}).get('finished', False),
-                    game_over=result.get('game_over', False),
-                    winner=result.get('winner'),
-                    game_status=result.get('game_status', 'active')
-                )
-                
-                # Send result to the player who made the guess
-                emit('guess_result', {
-                    'success': True,
-                    'result': result
-                })
-                
-                # Explicitly broadcast game state update to all players
-                broadcast_game_state_update(game_id)
-                
-                # If game ended, clean up the room AFTER broadcasting
-                if result.get('game_over', False):
-                    print(f"🏁 Game ended, cleaning up room for game {game_id}")
-                    if lobby_manager:
-                        lobby_manager.cleanup_room_after_game(game_id)
-                
-                print(f"🎯 WebSocket: {username} submitted guess '{guess}' in game {game_id}")
-        else:
-            # Log invalid guess
-            game_logger.log_game_event(
-                game_id, 
-                'multiplayer_guess_invalid', 
-                user_id,
-                username=username,
-                guess=guess,
-                error='Invalid guess or game not found',
-                method='websocket'
-            )
-            
-            emit('guess_result', {
-                'success': False,
-                'error': 'Invalid guess or game not found'
-            })
-            
-    except Exception as e:
-        print(f"❌ Error submitting guess via WebSocket: {e}")
-        emit('error', {'error': str(e)})
+        # Broadcast game state to all players
+        broadcast_game_state_update(game_id)
+    else:
+        # Send error to the player
+        error_msg = result.get('error') if result else 'Invalid guess'
+        emit('guess_result', {'success': False, 'error': error_msg})
 
 def broadcast_game_state_update(game_id):
     """Broadcast game state update to all players in a game."""
@@ -2223,87 +1775,11 @@ def broadcast_game_state_update(game_id):
         print(f"❌ Error broadcasting game state: {e}")
         game_logger.logger.error(f"❌ Error broadcasting game state for {game_id}: {e}")
 
-def broadcast_game_end(game_id, winner_id=None, game_status="finished"):
-    """Broadcast game end event to all players in a game."""
-    try:
-        game_data = server.games.get(game_id)
-        if not game_data:
-            print(f"⚠️ Cannot broadcast game end - game {game_id} not found")
-            return
-        
-        print(f"🏁 Broadcasting game end for game {game_id}, winner: {winner_id}, status: {game_status}")
-        
-        # Get the target word for the broadcast
-        target_word = game_data.get("target_word")
-        print(f"🏁 Target word for broadcast: {target_word}")
-        
-        # Broadcast to game room
-        room_name = f"game_{game_id}"
-        print(f"🏁 Broadcasting to room: {room_name}")
-        
-        socketio.emit('game_ended', {
-            'game_id': game_id,
-            'winner_id': winner_id,
-            'game_status': game_status,
-            'target_word': target_word
-        }, room=room_name)
-        
-        # Also broadcast directly to connected players as a fallback
-        players = game_data.get("players", [])
-        print(f"🏁 Also broadcasting directly to {len(players)} players")
-        
-        for player in players:
-            user_id = player["id"]
-            if user_id in connected_users:
-                player_socket_id = connected_users[user_id]
-                socketio.emit('game_ended', {
-                    'game_id': game_id,
-                    'winner_id': winner_id,
-                    'game_status': game_status,
-                    'target_word': target_word
-                }, room=player_socket_id)
-                print(f"🏁 Sent game end to player {player['username']} ({user_id})")
-        
-        print(f"🏁 Completed broadcasting game end for game {game_id}")
-        
-        # Log the game end event
-        game_logger.log_game_event(
-            game_id, 
-            'multiplayer_game_ended', 
-            winner_id or 'system',
-            winner_id=winner_id,
-            game_status=game_status,
-            target_word=target_word,
-            players=[p['username'] for p in players]
-        )
-        
-    except Exception as e:
-        print(f"❌ Error broadcasting game end: {e}")
-        game_logger.logger.error(f"❌ Error broadcasting game end for {game_id}: {e}")
+
 
 
 if __name__ == '__main__':
-    print("Starting Wordle Server...")
-    print("API endpoints:")
-    print("  POST /api/new_game - Create new game")
-    print("  GET /api/game/<id>/state - Get game state") 
-    print("  POST /api/game/<id>/guess - Submit guess")
-    print("  DELETE /api/game/<id> - Delete game")
-    print("  GET /api/health - Health check")
-    print("Authentication endpoints:")
-    print("  POST /api/auth/register - Register new user")
-    print("  POST /api/auth/login - Login user")
-    print("  GET /api/auth/verify - Verify JWT token")
-    print("  GET /api/auth/profile - Get user profile")
-    print("  POST /api/auth/heartbeat - Send heartbeat to keep session alive")
-    print("Multiplayer/Lobby endpoints:")
-    print("  GET /api/lobby/state - Get lobby state")
-    print("  POST /api/lobby/join - Join a room")
-    print("  POST /api/lobby/leave - Leave current room")
-    print("  POST /api/multiplayer/start - Start multiplayer game")
-    print("  GET /api/multiplayer/<id>/state - Get multiplayer game state")
-    print("  POST /api/multiplayer/<id>/guess - Submit multiplayer guess")
-    print(f"Logging enabled - logs will be saved to: logs/")
+
     
     # Start heartbeat cleanup worker in background thread
     if auth_service:

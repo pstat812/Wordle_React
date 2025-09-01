@@ -123,12 +123,16 @@ function LobbyPage({
 
   // Handle game start event
   useEffect(() => {
+    console.log('🎮 LobbyPage: gameStarted state changed:', gameStarted);
     if (gameStarted && gameStarted.success && onStartMultiplayer) {
+      console.log('🎮 LobbyPage: Starting multiplayer game with ID:', gameStarted.game_id);
       showAlert('Game is starting!', 'success', 1000);
       setTimeout(() => {
         onStartMultiplayer(gameStarted.game_id, gameStarted.players);
         clearGameStarted();
       }, 1000);
+    } else if (gameStarted && !gameStarted.success) {
+      console.log('🎮 LobbyPage: Game start failed:', gameStarted);
     }
   }, [gameStarted, onStartMultiplayer, showAlert, clearGameStarted]);
 

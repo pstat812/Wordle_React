@@ -51,7 +51,7 @@ class WebSocketService {
 
         // Connection successful
         this.socket.on('connect', () => {
-          // WebSocket connected
+          console.log('🔌 WebSocket connected successfully');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           resolve(true);
@@ -182,11 +182,11 @@ class WebSocketService {
    */
   joinLobby(token) {
     if (!this.isConnectedToServer()) {
-      // Cannot join lobby: WebSocket not connected
+      console.log('🔌 Cannot join lobby: WebSocket not connected');
       return;
     }
 
-    // Joining lobby
+    console.log('🏠 Joining lobby via WebSocket');
     this.socket.emit('join_lobby', {
       token: token
     });
@@ -209,92 +209,46 @@ class WebSocketService {
   }
 
   /**
-   * Join a multiplayer room via WebSocket
-   * @param {number} roomId - Room ID to join
-   * @param {string} token - JWT authentication token
+   * Join a multiplayer room
    */
   joinRoom(roomId, token) {
     if (!this.isConnectedToServer()) {
-      // Cannot join room: WebSocket not connected
+      console.log('🔌 Cannot join room: WebSocket not connected');
       return;
     }
 
-    // Joining room
-    this.socket.emit('ws_join_room', {
+    console.log(`🏠 Joining room ${roomId} via WebSocket`);
+    this.socket.emit('join_room', {
       room_id: roomId,
       token: token
     });
   }
 
   /**
-   * Leave current room via WebSocket
-   * @param {string} token - JWT authentication token
+   * Leave current room
    */
   leaveRoom(token) {
-    if (!this.isConnectedToServer()) {
-      // Cannot leave room: WebSocket not connected
-      return;
-    }
-
-    // Leaving room
-    this.socket.emit('ws_leave_room', {
+    if (!this.isConnectedToServer()) return;
+    
+    this.socket.emit('leave_room', {
       token: token
     });
   }
 
   /**
-   * Start a multiplayer game via WebSocket
-   * @param {number} roomId - Room ID to start game from
-   * @param {string} token - JWT authentication token
-   */
-  startMultiplayerGame(roomId, token) {
-    if (!this.isConnectedToServer()) {
-      // Cannot start game: WebSocket not connected
-      return;
-    }
-
-    // Starting multiplayer game in room
-    this.socket.emit('ws_start_multiplayer_game', {
-      room_id: roomId,
-      token: token
-    });
-  }
-
-  /**
-   * Submit a guess via WebSocket
-   * @param {string} gameId - Game ID
-   * @param {string} guess - The word guess
-   * @param {string} token - JWT authentication token
+   * Submit a guess
    */
   submitGuess(gameId, guess, token) {
-    if (!this.isConnectedToServer()) {
-      // Cannot submit guess: WebSocket not connected
-      return;
-    }
-
-    // Submitting guess for game
-    this.socket.emit('ws_submit_guess', {
+    if (!this.isConnectedToServer()) return;
+    
+    this.socket.emit('submit_guess', {
       game_id: gameId,
       guess: guess,
       token: token
     });
   }
 
-  /**
-   * Reset all rooms to empty state (for debugging/cleanup)
-   * @param {string} token - JWT authentication token
-   */
-  resetAllRooms(token) {
-    if (!this.isConnectedToServer()) {
-      // Cannot reset rooms: WebSocket not connected
-      return;
-    }
 
-    // Requesting to reset all rooms
-    this.socket.emit('ws_reset_all_rooms', {
-      token: token
-    });
-  }
 
   /**
    * Add event listener for WebSocket events
