@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { createNewGame, getGameState, submitGuess as apiSubmitGuess } from '../apiService';
+import { createNewGame, getGameState, submitGuess as apiSubmitGuess } from '../services/apiService';
 
 // Letter Status Constants (matching server)
 export const LETTER_STATUS = {

@@ -1,7 +1,7 @@
 """
-Authentication Service for Wordle Game Server
+Authentication Service
 
-This module handles user authentication including registration, login,
+Handles user authentication including registration, login,
 password hashing, and JWT token management using MongoDB for data storage.
 """
 
@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from bson.objectid import ObjectId
+from flask import current_app
 
 
 class AuthService:
@@ -112,7 +113,7 @@ class AuthService:
                 "created_at": now,
                 "last_activity": now,
                 "last_heartbeat": now,  # Track when user last sent heartbeat
-                "expires_at": now + datetime.timedelta(seconds=10)  # 10 second timeout (1 missed 5-second heartbeat + buffer)
+                "expires_at": now + datetime.timedelta(seconds=current_app.config.get('SESSION_TIMEOUT_SECONDS', 10))
             }
             
             # Use upsert to replace any existing session for this user
@@ -269,7 +270,7 @@ class AuthService:
             token_payload = {
                 "user_id": user_id,
                 "username": user["username"],
-                "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)  # Token expires in 7 days
+                "exp": datetime.datetime.utcnow() + datetime.timedelta(days=current_app.config.get('JWT_EXPIRATION_DAYS', 7))
             }
             
             token = jwt.encode(token_payload, self.jwt_secret, algorithm="HS256")
@@ -315,7 +316,7 @@ class AuthService:
             # Check if session is still active and heartbeat is recent
             token_hash = self._hash_token(token)
             now = datetime.datetime.utcnow()
-            heartbeat_cutoff = now - datetime.timedelta(seconds=10)  # Heartbeat must be within last 10 seconds
+            heartbeat_cutoff = now - datetime.timedelta(seconds=current_app.config.get('SESSION_TIMEOUT_SECONDS', 10))
             
             session = self.sessions_collection.find_one({
                 "user_id": user_id,
@@ -416,7 +417,7 @@ class AuthService:
                     "$set": {
                         "last_activity": now,
                         "last_heartbeat": now,  # Update heartbeat timestamp
-                        "expires_at": now + datetime.timedelta(seconds=10)  # Reset 10-second timeout for heartbeat detection
+                        "expires_at": now + datetime.timedelta(seconds=current_app.config.get('SESSION_TIMEOUT_SECONDS', 10))
                     }
                 }
             )
@@ -444,7 +445,6 @@ class AuthService:
             User data dictionary or None if not found
         """
         try:
-            from bson.objectid import ObjectId
             user = self.users_collection.find_one({"_id": ObjectId(user_id)})
             if user:
                 return {
@@ -471,8 +471,6 @@ class AuthService:
             True if update successful, False otherwise
         """
         try:
-            from bson.objectid import ObjectId
-            
             # Get current stats
             user = self.users_collection.find_one({"_id": ObjectId(user_id)})
             if not user:
@@ -513,8 +511,10 @@ class AuthService:
             Dictionary with cleanup results and user information
         """
         try:
-            # Find sessions where last_heartbeat is older than 10 seconds
-            cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+            # Find sessions where last_heartbeat is older than timeout
+            cutoff_time = datetime.datetime.utcnow() - datetime.timedelta(
+                seconds=current_app.config.get('SESSION_TIMEOUT_SECONDS', 10)
+            )
             
             # First, get the sessions that will be deleted to log user information
             expired_sessions = list(self.sessions_collection.find({
@@ -574,3 +574,23 @@ class AuthService:
         """Close the MongoDB connection."""
         if self.client:
             self.client.close()
+
+
+# Global service instance
+_auth_service = None
+
+
+def get_auth_service() -> Optional[AuthService]:
+    """Get the global auth service instance."""
+    return _auth_service
+
+
+def initialize_auth_service(mongo_uri: str, jwt_secret: str) -> AuthService:
+    """Initialize the global auth service instance."""
+    global _auth_service
+    try:
+        _auth_service = AuthService(mongo_uri, jwt_secret)
+        return _auth_service
+    except Exception as e:
+        print(f"Failed to initialize authentication service: {e}")
+        return None

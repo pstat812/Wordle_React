@@ -1,9 +1,4 @@
-/* App Global Styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* App Global Styles - box-sizing and reset handled by index.css */
 
 /* Remove focus outline from all buttons and interactive elements */
 button:focus,
@@ -18,10 +13,8 @@ input:active,
 }
 
 body {
-  font-family: Arial, sans-serif;
   background-color: #ffffff;
   color: #212529;
-  line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -41,10 +34,7 @@ body {
   color: #f1f5f9;
 }
 
-.app--dark body {
-  background-color: #0f172a;
-  color: #f1f5f9;
-}
+/* Removed duplicate dark mode body styles - already handled by index.css */
 
 /* Loading Screen Styles */
 .app__loading {

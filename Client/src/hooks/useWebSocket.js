@@ -115,24 +115,42 @@ export function useMultiplayerWebSocket(gameId) {
     const handleGameStateUpdate = (data) => {
       // Received game state update
       if (data.success && data.state) {
-        setGameState(data.state);
+        // Ensure the game state has required player data before setting
+        if (data.state.player || data.state.game_over) {
+          setGameState(data.state);
+        } else {
+          console.warn('Received incomplete game state update, ignoring:', data.state);
+        }
       }
     };
 
     // Game ended handler
     const handleGameEnded = (data) => {
       // Game ended
+      console.log('Game ended event received:', data);
       setGameEnded(true);
       
       // Always update game state with final game data, regardless of current state
+      const baseState = gameState || {};
       const finalState = {
-        ...(gameState || {}), // Handle case where gameState might be null
+        ...baseState,
         game_over: true,
         winner: data.winner_id,
         game_status: data.game_status,
         target_word: data.target_word,
+        disconnect_reason: data.reason, // Track if game ended due to disconnect
         // Ensure we have the game_id from the event data
-        game_id: data.game_id || (gameState && gameState.game_id)
+        game_id: data.game_id || baseState.game_id,
+        // Ensure player object exists to prevent undefined errors
+        player: baseState.player || {
+          current_round: 0,
+          guesses: [],
+          guess_results: [],
+          letter_status: {},
+          game_over: true,
+          won: false,
+          finished: true
+        }
       };
       setGameState(finalState);
     };
@@ -164,15 +182,20 @@ export function useMultiplayerWebSocket(gameId) {
 
     // Cleanup function
     return () => {
-      websocketService.off('game_state_update', handleGameStateUpdate);
-      websocketService.off('game_ended', handleGameEnded);
-      websocketService.off('player_joined', handlePlayerJoined);
-      websocketService.off('player_left', handlePlayerLeft);
-      websocketService.off('error', handleError);
-      
-      // Only try to leave game if still connected
-      if (isConnected) {
-        leaveGame();
+      try {
+        websocketService.off('game_state_update', handleGameStateUpdate);
+        websocketService.off('game_ended', handleGameEnded);
+        websocketService.off('player_joined', handlePlayerJoined);
+        websocketService.off('player_left', handlePlayerLeft);
+        websocketService.off('error', handleError);
+        
+        // Only try to leave game if still connected
+        if (isConnected && websocketService.isConnectedToServer()) {
+          leaveGame();
+        }
+      } catch (error) {
+        // Ignore cleanup errors - connection might be closing
+        console.warn('Error during multiplayer WebSocket cleanup:', error);
       }
     };
   }, [isConnected, websocketService, joinGame, leaveGame]);
@@ -321,17 +344,22 @@ export function useLobbyWebSocket() {
 
     // Cleanup function
     return () => {
-      websocketService.off('lobby_state_update', handleLobbyStateUpdate);
-      websocketService.off('room_join_result', handleRoomJoinResult);
-      websocketService.off('room_leave_result', handleRoomLeaveResult);
-      websocketService.off('game_started', handleGameStarted);
-      websocketService.off('user_joined_lobby', handleUserJoinedLobby);
-      websocketService.off('user_left_lobby', handleUserLeftLobby);
-      websocketService.off('error', handleError);
-      
-      // Only try to leave lobby if still connected
-      if (isConnected) {
-        leaveLobby();
+      try {
+        websocketService.off('lobby_state_update', handleLobbyStateUpdate);
+        websocketService.off('room_join_result', handleRoomJoinResult);
+        websocketService.off('room_leave_result', handleRoomLeaveResult);
+        websocketService.off('game_started', handleGameStarted);
+        websocketService.off('user_joined_lobby', handleUserJoinedLobby);
+        websocketService.off('user_left_lobby', handleUserLeftLobby);
+        websocketService.off('error', handleError);
+        
+        // Only try to leave lobby if still connected
+        if (isConnected && websocketService.isConnectedToServer()) {
+          leaveLobby();
+        }
+      } catch (error) {
+        // Ignore cleanup errors - connection might be closing
+        console.warn('Error during lobby WebSocket cleanup:', error);
       }
     };
   }, [isConnected, websocketService, joinLobby, leaveLobby]);

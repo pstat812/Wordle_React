@@ -61,6 +61,19 @@ function GameResultModal({
 
     if (gameResult.game_status === 'finished' && gameResult.winner) {
       const isWinner = gameResult.winner === currentUser.id;
+      
+      // Check if this is a disconnect win
+      const isDisconnectWin = gameResult.disconnect_reason === 'opponent_disconnected';
+      
+      if (isDisconnectWin && isWinner) {
+        return {
+          title: 'You Won!',
+          subtitle: 'Opponent Disconnected',
+          emoji: '🏆',
+          className: 'won'
+        };
+      }
+      
       return {
         title: isWinner ? 'You Won!' : 'You Lost',
         emoji: isWinner ? '🎉' : '😔',
@@ -84,6 +97,9 @@ function GameResultModal({
           <div className={`game-result-modal__result game-result-modal__result--${resultDisplay.className}`}>
             <div className="game-result-modal__emoji">{resultDisplay.emoji}</div>
             <h2 className="game-result-modal__title">{resultDisplay.title}</h2>
+            {resultDisplay.subtitle && (
+              <p className="game-result-modal__subtitle">{resultDisplay.subtitle}</p>
+            )}
           </div>
         </div>
 

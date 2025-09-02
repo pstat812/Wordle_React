@@ -12,7 +12,7 @@ import GameBoard from '../components/GameBoard';
 import Keyboard from '../components/Keyboard';
 import GameResultModal from '../components/GameResultModal';
 
-import { getMultiplayerGameState, submitMultiplayerGuess } from '../apiService';
+import { getMultiplayerGameState, submitMultiplayerGuess } from '../services/apiService';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useMultiplayerWebSocket } from '../hooks/useWebSocket';
@@ -112,6 +112,20 @@ function MultiplayerPage({
   const currentGameState = wsConnected && wsGameState ? 
     { ...wsGameState, max_rounds: 6 } : 
     (gameState ? { ...gameState, max_rounds: 6 } : gameState);
+
+  // Handle WebSocket game ended events immediately
+  useEffect(() => {
+    if (wsGameEnded && wsGameState && wsGameState.game_over && !showResultModal) {
+      // Game ended via WebSocket (including disconnections) - show modal immediately
+      console.log('Game ended via WebSocket, showing result modal');
+      setShowResultModal(true);
+      
+      // Show specific alert for opponent disconnect
+      if (wsGameState.disconnect_reason === 'opponent_disconnected') {
+        showAlert('Your opponent disconnected - You Win!', 'success');
+      }
+    }
+  }, [wsGameEnded, wsGameState, showResultModal, showAlert]);
 
   // Submit guess
   const handleSubmitGuess = useCallback(async () => {
@@ -449,8 +463,8 @@ function MultiplayerPage({
     );
   };
 
-  // Loading state
-  if (loading || !currentGameState) {
+  // Loading state or missing player data
+  if (loading || !currentGameState || !currentGameState.player) {
     return (
       <div 
         className={`app ${isDarkMode ? 'app--dark' : 'app--light'}`}
@@ -518,7 +532,7 @@ function MultiplayerPage({
             <h3>YOU</h3>
             <div className="player-info">
               <span className="attempts">
-                {currentGameState.player.current_round}/{currentGameState.max_rounds} attempts
+                {currentGameState.player?.current_round || 0}/{currentGameState.max_rounds} attempts
               </span>
               {renderSpellStatus(spells)}
             </div>
@@ -530,7 +544,7 @@ function MultiplayerPage({
               {currentGameState.opponent ? (
                 <>
                   <span className="attempts">
-                    {currentGameState.opponent.current_round}/{currentGameState.max_rounds} attempts
+                    {currentGameState.opponent?.current_round || 0}/{currentGameState.max_rounds} attempts
                   </span>
                   {renderSpellStatus(opponentSpells)}
                 </>
@@ -544,7 +558,7 @@ function MultiplayerPage({
 
 
         {/* Waiting Message */}
-        {currentGameState.player.finished && !currentGameState.game_over && (
+        {currentGameState.player?.finished && !currentGameState.game_over && (
           <div className="waiting-message">
             <h3>⏳ Waiting for opponent to finish...</h3>
             <p>You've completed your attempts. Your opponent is still playing.</p>
@@ -553,21 +567,21 @@ function MultiplayerPage({
 
         {/* Game Board */}
         <GameBoard
-          guesses={currentGameState.player.guesses}
-          guessResults={currentGameState.player.guess_results}
-          currentInput={currentGameState.player.finished ? '' : currentGuess}
+          guesses={currentGameState.player?.guesses || []}
+          guessResults={currentGameState.player?.guess_results || []}
+          currentInput={currentGameState.player?.finished ? '' : currentGuess}
           maxRounds={currentGameState.max_rounds}
-          currentRound={currentGameState.player.current_round}
-          gameOver={currentGameState.player.finished}
-          won={currentGameState.player.won}
+          currentRound={currentGameState.player?.current_round || 0}
+          gameOver={currentGameState.player?.finished || false}
+          won={currentGameState.player?.won || false}
         />
 
 
 
         {/* Keyboard */}
-        {!currentGameState.player.finished && !currentGameState.game_over && (
+        {!currentGameState.player?.finished && !currentGameState.game_over && (
           <Keyboard
-            letterStatus={currentGameState.player.letter_status}
+            letterStatus={currentGameState.player?.letter_status || {}}
             onLetterClick={handleLetterInput}
             onEnterClick={handleEnterInput}
             onBackspaceClick={handleBackspaceInput}

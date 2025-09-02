@@ -71,6 +71,14 @@
   color: #000000;
 }
 
+.game-result-modal__subtitle {
+  margin: 8px 0 0 0;
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
 /* Result Type Colors */
 .game-result-modal__result--won .game-result-modal__title {
   color: var(--success-color, #10b981);

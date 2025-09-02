@@ -86,11 +86,8 @@ function AppContent() {
   const handleBackToMenu = useCallback(() => {
     hideAlert(); // Clear any existing alerts when navigating
     
-    // Disconnect WebSocket to trigger server-side cleanup
-    // This will remove the user from any rooms they're in
-    if (websocketService.isConnectedToServer()) {
-      websocketService.disconnect();
-    }
+    // Don't disconnect WebSocket immediately - let React cleanup handle it properly
+    // The useWebSocket hooks will handle leaving rooms and cleanup gracefully
     
     setCurrentPage('menu');
     setMultiplayerGameId(null); // Clear multiplayer game ID
@@ -117,6 +114,11 @@ function AppContent() {
   // Logout handler
   const handleLogout = useCallback(async () => {
     try {
+      // Disconnect WebSocket before logout to ensure clean server-side cleanup
+      if (websocketService.isConnectedToServer()) {
+        websocketService.disconnect();
+      }
+      
       await logout();
       setCurrentPage('login');
     } catch (error) {

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { loginUser, logoutUser, sendHeartbeat } from '../apiService';
+import { loginUser, logoutUser, sendHeartbeat } from '../services/apiService';
 
 // Create authentication context
 const AuthContext = createContext();

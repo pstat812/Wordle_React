@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { registerUser } from '../apiService';
+import { registerUser } from '../services/apiService';
 import './RegisterModal.css';
 
 function RegisterModal({ isOpen, onClose, onSuccess, onError }) {

@@ -116,18 +116,29 @@ class WebSocketService {
     if (this.socket) {
       // Disconnecting WebSocket
       
-      // Remove all event listeners
-      this.eventListeners.forEach((listeners, event) => {
-        listeners.forEach(listener => {
-          this.socket.off(event, listener);
+      try {
+        // Remove all event listeners
+        this.eventListeners.forEach((listeners, event) => {
+          listeners.forEach(listener => {
+            try {
+              this.socket.off(event, listener);
+            } catch (error) {
+              // Ignore errors when removing listeners during disconnect
+            }
+          });
         });
-      });
-      this.eventListeners.clear();
-      
-      // Disconnect socket
-      this.socket.disconnect();
-      this.socket = null;
-      this.isConnected = false;
+        this.eventListeners.clear();
+        
+        // Disconnect socket gracefully
+        this.socket.disconnect();
+      } catch (error) {
+        // Ignore errors during disconnect - connection might already be closed
+        console.warn('Error during WebSocket disconnect:', error);
+      } finally {
+        // Always clean up state
+        this.socket = null;
+        this.isConnected = false;
+      }
     }
   }
 
@@ -136,7 +147,13 @@ class WebSocketService {
    * @returns {boolean} Connection status
    */
   isConnectedToServer() {
-    return this.isConnected && this.socket && this.socket.connected;
+    try {
+      return this.isConnected && this.socket && this.socket.connected;
+    } catch (error) {
+      // If there's an error checking connection status, assume disconnected
+      this.isConnected = false;
+      return false;
+    }
   }
 
   /**
@@ -197,10 +214,15 @@ class WebSocketService {
       return;
     }
 
-    // Leaving lobby
-    this.socket.emit('leave_lobby', {
-      token: token
-    });
+    try {
+      // Leaving lobby
+      this.socket.emit('leave_lobby', {
+        token: token
+      });
+    } catch (error) {
+      // Ignore errors when leaving lobby - connection might be closing
+      console.warn('Error leaving lobby (connection may be closing):', error);
+    }
   }
 
   /**
@@ -314,7 +336,12 @@ class WebSocketService {
       return;
     }
 
-    this.socket.emit(event, data);
+    try {
+      this.socket.emit(event, data);
+    } catch (error) {
+      // Ignore emit errors - connection might be closing
+      console.warn(`Error emitting ${event} event:`, error);
+    }
   }
 }
 

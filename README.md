@@ -4,6 +4,7 @@
 - A React implementation of the classic Wordle game, replicating the original NYTimes version
 - Supports both keyboard input and on-screen virtual keyboard for letter entry
 - Supports Dark Mode to enhance user experience 
+- Animated letter tiles that flip and reveal colors when submitting a guess
 - Implemented client-server architecture with Flask backend and React frontend
 - Comprehensive logging system for game analytics and debugging
 - New Host cheating wordle(Absurdle) game mode with adversarial gameplay
@@ -12,17 +13,15 @@
 - Added protection against concurrent logins from the same user account
 - Real-time multiplayer functionality using WebSocket 
 - Lobby system for multiplayer room management
+- Automatic win detection when opponent disconnects in multiplayer mode
 
 
-### Development Notes
-- The current word list contains a small set of test words for testing purposes. A comprehensive word list can be easily added by updating the WORD_LIST in game_settings.py
-- All console debugging statements have been removed from the client code for production readiness
-
+For detailed architecture documentation, see `Server/ARCHITECTURE.md`
 
 ### Planned Development
+- Prevent players idle in game
 - Personal statistics and game history tracking dashboard
 - Enhanced user profile management
-
 
 ### Game Rules
 
@@ -41,67 +40,20 @@
 4. The game board grows with each guess (starts with 1 row, adds more as needed)
 5. Win condition: Force the game to narrow down to exactly one possible word
 
-
-### Project Structure
-
-```
-wordle_task/
-├── Client/                          # React Frontend Application
-│   ├── public/
-│   │   ├── index.html               # Main HTML template with loading states
-│   │   └── manifest.json            # PWA manifest configuration
-│   │
-│   ├── src/
-│   │   ├── components/              # Reusable React components
-│   │   │   ├── AbsurdleBoard.js     # Dynamic growing game board for Absurdle mode
-│   │   │   ├── Alert.js             # Notification system component
-│   │   │   ├── GameBoard.js         # Dynamic game board with tile grid
-│   │   │   ├── GameResultModal.js   # Game completion modal with results
-│   │   │   ├── GameTile.js          # Individual letter tile component
-│   │   │   ├── Header.js            # Application header with navigation and controls
-│   │   │   ├── Keyboard.js          # Virtual on-screen keyboard 
-│   │   │   └── RegisterModal.js     # User registration modal component
-│   │   │  
-│   │   ├── hooks/                   # Custom React hooks
-│   │   │   ├── useAuth.js           # Authentication state management hook
-│   │   │   ├── useTheme.js          # Theme and dark mode management hook
-│   │   │   ├── useWebSocket.js      # WebSocket connection and event management
-│   │   │   └── useWordleGame.js     # Game state management hook
-│   │   │
-│   │   ├── pages/                   # Page components for different app sections
-│   │   │   ├── AbsurdlePage.js      # Absurdle game mode page
-│   │   │   ├── LoginPage.js         # User authentication page
-│   │   │   ├── LobbyPage.js         # Multiplayer lobby and room management
-│   │   │   ├── MenuPage.js          # Game mode selection interface
-│   │   │   ├── MultiplayerPage.js   # Real-time multiplayer game page
-│   │   │   └── WordlePage.js        # Wordle game mode page
-│   │   │
-│   │   ├── services/                # Service layer for external communication
-│   │   │   └── websocketService.js  # WebSocket service for real-time communication
-│   │   │
-│   │   ├── theme/                   # Theme configuration
-│   │   │   └── colors.js            # Color scheme definitions
-│   │   │  
-│   │   ├── apiService.js            # HTTP client for server communication
-│   │   ├── config.js                # Application configuration settings
-│   │   ├── App.js                   # Main application component with routing
-│   │   ├── index.js                 # React application entry point
-│   │   └── index.css                # Global styles and themes
-│   │ 
-│   ├── package.json                 # NPM dependencies and build scripts
-│   └── package-lock.json            # Dependency lock file
-│
-├── Server/                          # Python Flask Backend
-│   ├── logs/                        # Application logs directory
-│   ├── auth_service.py              # User authentication service
-│   ├── game_logger.py               # Comprehensive logging system
-│   ├── game_settings.py             # Game configuration and validation
-│   ├── main.py                      # Server launcher with error handling
-│   ├── requirements.txt             # Python dependencies
-│   └── wordle_server.py             # Main Flask application with game engine
-│ 
-└── README.md                        # This documentation
-```
+#### Multiplayer Mode (Competitive)
+1. Two players compete to guess the same 5-letter word
+2. Each player has 6 attempts to guess the word
+3. Both players see their own game board and opponent progress
+4. **Win Conditions:**
+   - First player to guess the word correctly wins
+   - If both players fail to guess within 6 attempts, the game ends in a draw
+   - If one player disconnects, the remaining player wins automatically
+5. **Special Spell System** - Players can cast spells to hinder their opponent:
+   - **FLASH**: Blinds opponent's screen for 3 seconds (type "FLASH" as your guess)
+   - **WRONG**: Next 5 letters opponent types will be randomized (type "WRONG" as your guess)  
+   - **BLOCK**: Disables opponent's input for 3 seconds (type "BLOCK" as your guess)
+   - Each spell can only be used once per game
+   - Spells don't count as regular guesses
 
 ### Setup and Installation
 
@@ -162,31 +114,140 @@ wordle_task/
    npm start
    ```
 
-5. Open your browser and navigate to `http://localhost:3000`
-
-#### Development Workflow
+4. Open your browser and navigate to `http://localhost:3000`
 
 #### Server Configuration
 
-**1. Game Settings**: Edit `Server/game_settings.py`
+**1. Environment Configuration**: Create `Server/app/config/.env` file 
+   ```env
+   # Database Configuration
+   MONGO_URI=mongodb://your-mongo-url-here
+   
+   # JWT Configuration
+   JWT_SECRET=your-jwt-secret-here
+   
+   # Server Configuration
+   HOST=127.0.0.1
+   PORT=5000
+   DEBUG=True
+   
+   # Optional: Session and logging settings
+   JWT_EXPIRATION_DAYS=7
+   SESSION_TIMEOUT_SECONDS=10
+   HEARTBEAT_INTERVAL_SECONDS=5
+   ```
+
+**2. Game Settings**: The word list is automatically loaded from `Server/app/config/wordles.json`
    ```python
    MAX_ROUNDS: Final[int] = 6  # Maximum attempts (controlled by server)
-   WORD_LIST: Final[List[str]] = [
-       "ABOUT", "AFTER", "AGAIN", "BRAIN", "CHAIR",
-       # Add your words here (authoritative server list)
-   ]
+   # Word list is loaded from wordles.json (2309+ words)
+   WORD_LIST: Final[List[str]] = _load_word_list()
+   ```
+   
+   **Note**: To modify the word list, edit `Server/app/config/wordles.json`. The system automatically validates all words are 5 letters and alphabetic.
+
+**3. Application Configuration**: The `Server/app/config/app_config.py` loads settings from environment variables
+   ```python
+   # Configuration is automatically loaded from environment variables
+   # The main settings include:
+   class Config:
+       SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+       DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+       HOST = os.getenv('HOST', '127.0.0.1')
+       PORT = int(os.getenv('PORT', 5000))
+       MONGO_URI = os.getenv('MONGO_URI')
+       JWT_SECRET = os.getenv('JWT_SECRET')
+       JWT_EXPIRATION_DAYS = int(os.getenv('JWT_EXPIRATION_DAYS', 7))
    ```
 
-**2. Server Settings**: Edit `Server/wordle_server.py`
-   ```python
-   app.run(host='127.0.0.1', port=5000, debug=True)  # Server configuration
-   ```
+### Project Structure
 
-**3. CORS Configuration**: Modify CORS settings for production
-   ```python
-   from flask_cors import CORS
-   CORS(app, origins=['http://localhost:3000'])  # Specific origins
-   ```
+```
+wordle_task/
+├── Client/                          # React Frontend Application
+│   ├── public/
+│   │   ├── index.html               # Main HTML template with loading states
+│   │   └── manifest.json            # PWA manifest configuration
+│   │
+│   ├── src/
+│   │   ├── components/              # Reusable React components
+│   │   │   ├── AbsurdleBoard.js     # Dynamic growing game board for Absurdle mode
+│   │   │   ├── Alert.js             # Notification system component
+│   │   │   ├── GameBoard.js         # Dynamic game board with tile grid
+│   │   │   ├── GameResultModal.js   # Game completion modal with results
+│   │   │   ├── GameTile.js          # Individual letter tile component
+│   │   │   ├── Header.js            # Application header with navigation and controls
+│   │   │   ├── Keyboard.js          # Virtual on-screen keyboard 
+│   │   │   ├── RegisterModal.js     # User registration modal component
+│   │   │   └── RulesModal.js        # Game rules modal component
+│   │   │  
+│   │   ├── hooks/                   # Custom React hooks
+│   │   │   ├── useAuth.js           # Authentication state management hook
+│   │   │   ├── useTheme.js          # Theme and dark mode management hook
+│   │   │   ├── useWebSocket.js      # WebSocket connection and event management
+│   │   │   └── useWordleGame.js     # Game state management hook
+│   │   │
+│   │   ├── pages/                   # Page components for different app sections
+│   │   │   ├── AbsurdlePage.js      # Absurdle game mode page
+│   │   │   ├── LoginPage.js         # User authentication page
+│   │   │   ├── LobbyPage.js         # Multiplayer lobby and room management
+│   │   │   ├── MenuPage.js          # Game mode selection interface
+│   │   │   ├── MultiplayerPage.js   # Real-time multiplayer game page
+│   │   │   └── WordlePage.js        # Wordle game mode page
+│   │   │
+│   │   ├── services/                # Service layer for external communication
+│   │   │   ├── apiService.js        # HTTP client for server communication
+│   │   │   └── websocketService.js  # WebSocket service for real-time communication
+│   │   │
+│   │   ├── theme/                   # Theme configuration
+│   │   │   └── colors.js            # Color scheme definitions
+│   │   │  
+│   │   ├── config.js                # Application configuration settings
+│   │   ├── App.js                   # Main application component with routing
+│   │   ├── index.js                 # React application entry point
+│   │   └── index.css                # Global styles and themes
+│   │ 
+│   ├── package.json                 # NPM dependencies and build scripts
+│   └── package-lock.json            # Dependency lock file
+│
+├── Server/                          # Modular Python Flask Backend
+│   ├── app/                         # Main application package
+│   │   ├── __init__.py             # Flask app factory with blueprint registration
+│   │   ├── controllers/            # HTTP route handlers (MVC Controllers)
+│   │   │   ├── __init__.py
+│   │   │   ├── auth_controller.py  # Authentication endpoints
+│   │   │   ├── game_controller.py  # Game-related endpoints
+│   │   │   └── lobby_controller.py # Multiplayer/lobby endpoints
+│   │   ├── models/                 # Data models and schemas
+│   │   │   ├── __init__.py
+│   │   │   ├── game.py            # Game state models
+│   │   │   └── user.py            # User models
+│   │   ├── services/              # Business logic layer
+│   │   │   ├── __init__.py
+│   │   │   ├── auth_service.py    # Authentication logic
+│   │   │   ├── game_service.py    # Core game logic
+│   │   │   └── lobby_service.py   # Multiplayer/lobby logic
+│   │   ├── websocket/             # WebSocket handlers
+│   │   │   ├── __init__.py
+│   │   │   └── handlers.py        # WebSocket event handlers
+│   │   ├── utils/                 # Utility functions
+│   │   │   ├── __init__.py
+│   │   │   ├── decorators.py      # Auth decorators
+│   │   │   ├── helpers.py         # Helper functions
+│   │   │   └── game_logger.py     # Logging utilities
+│   │   └── config/                # Configuration management
+│   │       ├── __init__.py
+│   │       ├── app_config.py      # Flask application configuration
+│   │       ├── game_settings.py   # Game rules and constants
+│   │       ├── config.env         # Environment variables
+│   │       └── wordles.json       # Word database (2309+ words)
+│   ├── logs/                      # Application logs directory
+│   ├── main.py                    # Server launcher with error handling
+│   ├── requirements.txt           # Python dependencies
+│   └── ARCHITECTURE.md            # Detailed architecture documentation
+│ 
+└── README.md                      # This documentation
+```
 
 ### Framework
 
@@ -197,175 +258,11 @@ wordle_task/
 - **PyMongo 4.6.0**: MongoDB integration for user authentication and data persistence
 - **bcrypt 4.1.2**: Secure password hashing
 - **PyJWT 2.8.0**: JSON Web Token authentication
+- **python-dotenv 1.0.0**: Environment variable management from .env files
 
 #### Frontend Framework
 - **React 18.2.0**: Modern JavaScript library for building user interfaces
-- **Create React App**: Standard toolchain for React development
+- **React DOM 18.2.0**: React rendering for web browsers
+- **Create React App 5.0.1**: Standard toolchain for React development
 - **Socket.IO Client 4.7.2**: WebSocket client for real-time communication
 - **RESTful API**: Standard HTTP methods for stateless communication
-
-## API Documentation
-
-The server provides a REST API for game management and communication between client and server.
-
-### Base URL
-```
-http://127.0.0.1:5000/api
-```
-
-### Endpoints
-
-#### POST /new_game
-Creates a new game session with mode-specific initialization.
-
-**Request Body:**
-```json
-{
-  "game_mode": "wordle"  // "wordle" or "absurdle" (defaults to "wordle")
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "game_id": "uuid-string",
-  "state": {
-    "game_id": "uuid-string",
-    "current_round": 0,
-    "max_rounds": 6,        // 6 for Wordle, 1 for Absurdle (grows dynamically)
-    "game_over": false,
-    "won": false,
-    "guesses": [],
-    "guess_results": [],
-    "letter_status": {},
-    "answer": null,         // Only revealed when game ends
-    "game_mode": "wordle"   // "wordle" or "absurdle"
-  }
-}
-```
-
-#### GET /game/{game_id}/state
-Retrieves the current state of a game session.
-
-**Response:**
-```json
-{
-  "success": true,
-  "state": {
-    "game_id": "uuid-string",
-    "current_round": 2,
-    "max_rounds": 6,        // For Wordle: fixed 6, For Absurdle: grows with guesses
-    "game_over": false,
-    "won": false,
-    "guesses": ["ABOUT", "BRAIN"],
-    "guess_results": [
-      [["A", "MISS"], ["B", "HIT"], ["O", "PRESENT"], ["U", "MISS"], ["T", "MISS"]],
-      [["B", "HIT"], ["R", "MISS"], ["A", "PRESENT"], ["I", "MISS"], ["N", "MISS"]]
-    ],
-    "letter_status": {      // Tracks keyboard coloring
-      "A": "PRESENT", "B": "HIT", "O": "PRESENT", 
-      // ... other letters
-    },
-    "answer": null,         // Only included when game_over: true
-    "game_mode": "wordle"   // Current game mode
-  }
-}
-```
-
-#### POST /game/{game_id}/guess
-Submits a guess for validation and evaluation.
-
-**Request Body:**
-```json
-{
-  "guess": "CHAIR"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "state": {
-    // Updated game state with new guess processed
-    // For Absurdle: max_rounds will increment by 1
-    // For Wordle: max_rounds stays at 6
-    // guess_results will include new feedback pattern
-  }
-}
-```
-
-**Error Responses:**
-```json
-{
-  "success": false,
-  "error": "Word not in word list"
-}
-
-{
-  "success": false,
-  "error": "Game is already over"
-}
-
-{
-  "success": false,
-  "error": "Guess must be exactly 5 letters"
-}
-```
-
-#### DELETE /game/{game_id}
-Removes a completed game session from server memory.
-
-**Response:**
-```json
-{
-  "success": true
-}
-```
-
-#### GET /health
-Health check endpoint for server monitoring.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "active_games": 5
-}
-```
-
-## Logging System
-
-The server includes comprehensive logging to track user actions, server responses, and game events. This system is designed for future multiplayer support and provides detailed insights into game usage.
-
-### Log Structure
-
-**Log Location**: `Server/logs/game_log_YYYY-MM-DD.log`
-
-**Log Format**: Each log entry is a JSON object with:
-```json
-{
-  "timestamp": "2024-01-15T14:30:45.123456",
-  "event_type": "USER_ACTION|SERVER_RESPONSE_SUCCESS|SERVER_RESPONSE_ERROR|GAME_EVENT|ERROR",
-  "action": "new_game|submit_guess|get_state|delete_game|health_check",
-  "user": {
-    "user_ip": "127.0.0.1",
-    "session_id": null,
-    "username": null
-  },
-  "details": {
-    "game_id": "uuid-string",
-    "success": true,
-    "additional_context": "..."
-  }
-}
-```
-
-### Log Types
-
-1. **USER_ACTION**: Every user request (new game, guess submission, etc.)
-2. **SERVER_RESPONSE_SUCCESS**: Successful server responses
-3. **SERVER_RESPONSE_ERROR**: Failed server responses with error details
-4. **GAME_EVENT**: Special game events (wins, losses, etc.)
-5. **ERROR**: Server errors and exceptions

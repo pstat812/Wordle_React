@@ -5,7 +5,7 @@
  * abstracting API calls and providing error handling.
  */
 
-import { config } from './config';
+import { config } from '../config';
 
 const API_BASE_URL = config.apiBaseUrl;
 

@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Alert from '../components/Alert';
 import RulesModal from '../components/RulesModal';
-import { getLobbyState } from '../apiService';
+import { getLobbyState } from '../services/apiService';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useLobbyWebSocket } from '../hooks/useWebSocket';
